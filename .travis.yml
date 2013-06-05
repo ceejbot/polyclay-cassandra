@@ -14,4 +14,4 @@ before_install:
     - sudo service cassandra status
 
 before_script:
-  - npm install git://github.com/ceejbot/polyclay.git
+  - npm install polyclay

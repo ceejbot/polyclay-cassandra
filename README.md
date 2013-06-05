@@ -5,35 +5,63 @@ A cassandra persistence adapter for [Polyclay](https://github.com/ceejbot/polycl
 
 [![Build Status](https://secure.travis-ci.org/ceejbot/polyclay-cassandra.png)](http://travis-ci.org/ceejbot/polyclay-cassandra)
 
+This module relies on [scamandrios](https://github.com/ceejbot/scamandrios) for its cassandra driver.
+
+## Installation
+
+`npm install polyclay-cassandra`
+
 ## How-to
 
-For the redis adapter, specify host & port of your redis server. The 'dbname' option is used to namespace keys. The redis adapter will store models in hash keys of the form <dbname>:<key>. It will also use a set at key <dbname>:ids to track model ids.
+A quick example until more documentation is written:
+
 
 ```javascript
 var polyclay = require('polyclay'),
-    RedisAdapter = require('polyclay-redis');
+    CassandraAdapter = require('polyclay-cassandra'),
+    scamandrios = require('scamandrios')
+    ;
 
-var RedisModelFunc = polyclay.Model.buildClass({
+
+var testKSName = 'polyclay_unit_tests';
+var modelDefinition =
+{
     properties:
     {
-        name: 'string',
-        description: 'string'
+        key:           'string',
+        name:          'string',
+        created:       'date',
+        foozles:       'array',
+        snozzers:      'hash',
+        is_valid:      'boolean',
+        count:         'number',
+        floating:      'number',
+        required_prop: 'string',
     },
-    singular: 'widget',
-    plural: 'widgets'
+    optional:   [ 'computed', 'ephemeral' ],
+    required:   [ 'name', 'is_valid', 'required_prop'],
+    singular:   'model',
+    plural:     'models',
+    initialize: function()
+    {
+        this.ran_init = true;
+    }
+};
+
+Model = polyclay.Model.buildClass(modelDefinition);
+polyclay.persist(Model);
+
+connection = new scamandrios.Connection({
+    hosts:    ['localhost:9160'],
 });
-polyclay.persist(Widget);
-
-
-polyclay.persist(RedisModelFunc, 'name');
 
 var options =
 {
-    host: 'localhost',
-    port: 6379,
-    dbname: 'widgets' // optional
+    connection: connection,
+    keyspace: 'polyclay_unit_tests',
 };
-RedisModelFunc.setStorage(options, RedisAdapter);
+
+Model.setStorage(options, CassandraAdapter);
 ```
 
 The redis client is available at obj.adapter.redis. The db name falls back to the model plural if you don't include it. The dbname is used to namespace model keys.
