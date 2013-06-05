@@ -3,7 +3,7 @@ polyclay-cassandra
 
 A cassandra persistence adapter for [Polyclay](https://github.com/ceejbot/polyclay).
 
-[![Build Status](https://secure.travis-ci.org/ceejbot/polyclay.png)](http://travis-ci.org/ceejbot/polyclay)
+[![Build Status](https://secure.travis-ci.org/ceejbot/polyclay-cassandra.png)](http://travis-ci.org/ceejbot/polyclay-cassandra)
 
 ## How-to
 
