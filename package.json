@@ -1,0 +1,52 @@
+{
+	"name":           "polyclay-cassandra",
+	"version":        "1.0.1",
+	"description":    "cassandra persistence adapter for polyclay, the schema-enforcing document mapper",
+	"author":         "C J Silverio <ceejceej@gmail.com>",
+	"license":        "MIT",
+	"readmeFilename": "README.md",
+	"main":           "index.js",
+	"directories":
+	{
+		"example": "examples",
+		"test":    "test"
+	},
+	"scripts":
+	{
+		"test":       "mocha -R spec -t 5000 test/test-*.js && mocha -t 5000 --require blanket -R travis-cov test/test-*.js",
+		"test-cov":   "mocha --require blanket -R travis-cov test/test-*.js",
+		"coverage":   "mocha --require blanket -R html-cov test/test-*.js > test/coverage.html",
+		"travis-cov": { "threshold": 80 },
+		"blanket":
+		{
+			"pattern": "//^((?!\/node_modules|test|examples\/).)*$/ig"
+		}
+	},
+	"repository":
+	{
+		"type": "git",
+		"url":  "git://github.com/ceejbot/polyclay-cassandra.git"
+	},
+	"peerDependencies":
+	{
+		"polyclay": "git://github.com/ceejbot/polyclay.git"
+	},
+	"dependencies":
+	{
+		"lodash":    "*",
+		"p-promise": "*",
+		"scamandrios": "git://github.com/ceejbot/scamandrios.git"
+	},
+	"devDependencies":
+	{
+		"mocha":      "*",
+		"chai":       "*",
+		"blanket":    "*",
+		"travis-cov": "*"
+	},
+	"keywords":
+	[
+		"polyclay",
+		"cassandra"
+	]
+}

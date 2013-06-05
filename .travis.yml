@@ -1,0 +1,17 @@
+language: node_js
+
+node_js:
+  - "0.8"
+  - "0.10"
+
+services:
+  - cassandra
+
+before_install:
+    - sudo sh -c "echo 'JVM_OPTS=\"\${JVM_OPTS} -Djava.net.preferIPv4Stack=false\"' >> /usr/local/cassandra/conf/cassandra-env.sh"
+    - sudo service cassandra stop
+    - sudo service cassandra start
+    - sudo service cassandra status
+
+before_script:
+  - npm install git://github.com/ceejbot/polyclay.git
