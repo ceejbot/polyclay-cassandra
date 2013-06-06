@@ -607,16 +607,14 @@ CassandraAdapter.prototype.inflate = function(hash)
 		return;
 
 	var obj = new this.constructor();
-	var converted = {};
-	var keys = Object.keys(hash);
+	var types = obj.propertyTypes();
 
-	for (var i = 0; i < keys.length; i++)
+	var converted = {};
+	_.forOwn(hash, function(v, k)
 	{
-		var k = keys[i];
-		var v = hash[k];
-		var type = obj.__types[k];
-		converted[k] = convert(v, type);
-	}
+		var type = types[k];
+		converted[k] = k === 'key' ? v : convert(v, type);
+	});
 
 	obj.update(converted);
 	return obj;
