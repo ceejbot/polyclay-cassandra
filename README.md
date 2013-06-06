@@ -1,5 +1,5 @@
 polyclay-cassandra
-==============
+==================
 
 A cassandra persistence adapter for [Polyclay](https://github.com/ceejbot/polyclay).
 
@@ -41,11 +41,7 @@ var modelDefinition =
     optional:   [ 'computed', 'ephemeral' ],
     required:   [ 'name', 'is_valid', 'required_prop'],
     singular:   'model',
-    plural:     'models',
-    initialize: function()
-    {
-        this.ran_init = true;
-    }
+    plural:     'models'
 };
 
 Model = polyclay.Model.buildClass(modelDefinition);
@@ -64,5 +60,5 @@ var options =
 Model.setStorage(options, CassandraAdapter);
 ```
 
-The redis client is available at obj.adapter.redis. The db name falls back to the model plural if you don't include it. The dbname is used to namespace model keys.
+The keyspace is available at `obj.adapter.keyspace`, the model column family at `obj.adapter.columnFamily`, and the attachments column family at `obj.adapter.attachments`. `adapter.provision()` creates keyspaces and column families if necessary. It is safe to call provision more than once; it will avoid trying to create the tables if they already exist.
 

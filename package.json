@@ -29,7 +29,7 @@
 	},
 	"peerDependencies":
 	{
-		"polyclay": "git://github.com/ceejbot/polyclay.git"
+		"polyclay": "*"
 	},
 	"dependencies":
 	{
