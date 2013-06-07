@@ -594,7 +594,7 @@ function convert(value, type)
 	case 'boolean':   return value;
 	case 'date':      return value;
 	case 'number':    return value;
-	case 'untyped':   return !isFinite(value) ? value : JSON.parse(value);
+	case 'untyped':   return value ? JSON.parse(value) : value;
 	case 'array':     return JSON.parse(value);
 	case 'hash':      return JSON.parse(value);
 	case 'reference': return JSON.parse(value);
