@@ -89,7 +89,7 @@ CassandraAdapter.prototype.assignKeyspace = function()
 		return self.connection.useKeyspace(keyspace)
 		.fail(function(err)
 		{
-			if (err.name !== 'HelenusNotFoundException')
+			if (err.name !== 'ScamandriosNotFoundException')
 				throw err;
 
 			return self.connection.createKeyspace(keyspace).then(function()
@@ -117,7 +117,7 @@ CassandraAdapter.prototype.assignKeyspace = function()
 		if (initialRejected)
 		{
 			var reason = initialRejected.reason;
-			if (reason.name !== 'HelenusNotFoundException')
+			if (reason.name !== 'ScamandriosNotFoundException')
 				throw reason;
 
 			return self.connection.createKeyspace(keyspace)
@@ -594,6 +594,7 @@ function convert(value, type)
 	case 'boolean':   return value;
 	case 'date':      return value;
 	case 'number':    return value;
+	case 'untyped':   return !isFinite(value) ? value : JSON.parse(value);
 	case 'array':     return JSON.parse(value);
 	case 'hash':      return JSON.parse(value);
 	case 'reference': return JSON.parse(value);
