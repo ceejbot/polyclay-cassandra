@@ -24,7 +24,6 @@ function CassandraAdapter()
 	this.tables       = {};
 	this.connection   = null;
 	this.withKeyspace = null;
-	this.withTables   = null;
 	this.keyspace     = null;
 	this.columnFamily = null;
 	this.attachments  = null;
@@ -72,146 +71,24 @@ CassandraAdapter.prototype.configure = function(options, modelfunc)
 		});
 	}
 
-	this.withKeyspace = this.connection.connect().then(function() { return self.assignKeyspace(); });
-	this.withTables = this.withKeyspace.then(function(keyspace) { return self.getTables(keyspace); });
-};
-
-CassandraAdapter.prototype.assignKeyspace = function()
-{
-	var self = this;
-	var keyspace = self.options.keyspace;
-
-	if (self.keyspace)
-		return P(self.keyspace);
-
-	if (!(self.connection instanceof scamandrios.ConnectionPool))
+	this.withKeyspace = this.connection.connect().then(function()
 	{
-		return self.connection.useKeyspace(keyspace)
-		.fail(function(err)
-		{
-			if (err.name !== 'ScamandriosNotFoundException')
-				throw err;
-
-			return self.connection.createKeyspace(keyspace).then(function()
-			{
-				return self.connection.useKeyspace(keyspace);
-			});
-		}).then(function(keyspace)
-		{
-			self.keyspace = keyspace;
-			return keyspace;
-		});
-	}
-
-	return self.connection.use(keyspace)
-	.then(function(promises)
+	    return self.connection.assignKeyspace(self.options.keyspace);
+	}).then(function(ks)
 	{
-		var initialFulfilled = _.find(promises, { state: 'fulfilled' });
-		if (initialFulfilled)
-		{
-			self.keyspace = initialFulfilled.value;
-			return self.keyspace;
-		}
-
-		var initialRejected = _.find(promises, { state: 'rejected' });
-		if (initialRejected)
-		{
-			var reason = initialRejected.reason;
-			if (reason.name !== 'ScamandriosNotFoundException')
-				throw reason;
-
-			return self.connection.createKeyspace(keyspace)
-			.then(function() { return self.connection.use(keyspace); })
-			.then(function(promises)
-			{
-				var initialFulfilled = _.find(promises, { state: 'fulfilled' });
-
-				if (!initialFulfilled)
-				{
-					var selectError = new TypeError('Failed to create and select keyspace.');
-					_.assign(selectError, { keyspace: keyspace, response: promises });
-					throw selectError;
-				}
-
-				self.keyspace = initialFulfilled.value;
-				return self.keyspace;
-			});
-		}
-
-		var typeError = new TypeError('Unrecognized response type.');
-		_.assign(typeError, { response: promises });
-		throw typeError;
-	});
-};
-
-CassandraAdapter.prototype.getTables = function(keyspace)
-{
-	var self = this;
-
-	return keyspace.describe()
-	.then(function(columnFamilies)
-	{
-		self.tables = columnFamilies;
-		return columnFamilies;
-	});
-};
-
-CassandraAdapter.prototype.getTableAs = function getTableAs(name, property)
-{
-	var self = this;
-
-	if (this[property])
-		return P(this[property]);
-
-	return this.withTables
-	.then(function(columnFamilies)
-	{
-		if (columnFamilies[name])
-			self[property] = columnFamilies[name];
-
-		return self[property];
-	});
-};
-
-CassandraAdapter.prototype.createTableAs = function createTableAs(name, property, options)
-{
-	var self = this;
-	options = _.defaults(Object(options), { 'columns': [], 'description': '' });
-
-	return this.getTableAs(name, property)
-	.then(function(colfamily)
-	{
-		if (colfamily)
-			return colfamily;
-
-		var settings =
-		{
-			comment:                  options.description,
-			key_alias:                'key',
-			key_validation_class:     'UTF8Type',
-			comparator_type:          'UTF8Type',
-			default_validation_class: 'UTF8Type',
-			columns:                  options.columns
-		};
-
-		return self.keyspace.createColumnFamily(name, settings)
-		.then(function() { return self.keyspace.get(name); })
-		.then(function(colfamily)
-		{
-			self[property] = colfamily;
-			return colfamily;
-		});
+	    self.keyspace = ks;
+	    return ks;
 	});
 };
 
 CassandraAdapter.prototype.getModelTable = function()
 {
-	return this.getTableAs(this.family, 'columnFamily');
+	return this.keyspace.getTableAs(this.family, 'columnFamily');
 };
 
 CassandraAdapter.prototype.getAttachmentTable = function()
 {
-	return this.getTableAs(this.attachfamily, 'attachments');
+	return this.keyspace.getTableAs(this.attachfamily, 'attachments');
 };
 
 CassandraAdapter.prototype.createModelTable = function()
@@ -235,16 +112,23 @@ CassandraAdapter.prototype.createModelTable = function()
 		});
 	});
 
-	return this.createTableAs(self.family, 'columnFamily',
+	return self.keyspace.createTableAs(self.family, 'columnFamily',
 	{
 		description: 'polyclay ' + self.constructor.prototype.singular,
 		columns:     cols
+	})
+	.then(function(table)
+	{
+		self.columnFamily = table;
+		return table;
 	});
 };
 
 CassandraAdapter.prototype.createAttachmentsTable = function()
 {
-	return this.createTableAs(this.attachfamily, 'attachments',
+	var self = this;
+
+	return this.keyspace.createTableAs(this.attachfamily, 'attachments',
 	{
 		description: 'polyclay ' + this.constructor.prototype.singular + ' attachments',
 		columns:
@@ -253,6 +137,11 @@ CassandraAdapter.prototype.createAttachmentsTable = function()
 			{ name: 'content_type', validation_class: 'UTF8Type'  },
 			{ name: 'data',         validation_class: 'AsciiType' }
 		]
+	})
+	.then(function(table)
+	{
+		self.attachments = table;
+		return table;
 	});
 };
 
@@ -260,7 +149,7 @@ CassandraAdapter.prototype.provision = function(callback)
 {
 	var self = this;
 
-	return this.withTables
+	return this.withKeyspace
 	.then(function()
 	{
 		return P.all(

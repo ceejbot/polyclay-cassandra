@@ -504,12 +504,12 @@ describe('cassandra adapter', function()
 			should.not.exist(err);
 			reply.should.equal('OK');
 
-			obj.destroy(function(err, destroyed)
+			return obj.destroy(function(err, destroyed)
 			{
 				should.not.exist(err);
 
 				var key = 'cats:frogs';
-				adapter.connection.cql('SELECT * from %s WHERE key = ?', [adapter.attachfamily, key])
+				return adapter.connection.cql('SELECT * from %s WHERE key = ?', [adapter.attachfamily, key])
 				.then(function(rows)
 				{
 					rows.should.be.ok;
@@ -523,8 +523,6 @@ describe('cassandra adapter', function()
 						props[col] = value;
 					});
 
-					Object.keys(props).length.should.equal(1);
-					props.should.have.property('key');
 					should.not.exist(props.data);
 					should.not.exist(props.body);
 
