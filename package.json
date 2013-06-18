@@ -1,6 +1,6 @@
 {
 	"name":           "polyclay-cassandra",
-	"version":        "1.0.1",
+	"version":        "1.0.2",
 	"description":    "cassandra persistence adapter for polyclay, the schema-enforcing document mapper",
 	"author":         "C J Silverio <ceejceej@gmail.com>",
 	"license":        "MIT",
@@ -29,7 +29,7 @@
 	},
 	"peerDependencies":
 	{
-		"polyclay": "*"
+		"polyclay": ">= 1.4.1"
 	},
 	"dependencies":
 	{
