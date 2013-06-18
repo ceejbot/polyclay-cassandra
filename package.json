@@ -19,7 +19,7 @@
 		"travis-cov": { "threshold": 80 },
 		"blanket":
 		{
-			"pattern": "//^((?!\/node_modules|test|examples\/).)*$/ig"
+			"pattern": "//^((?!\/node_modules\/|\/polyclay\/|test\/|examples\/).)*$/ig"
 		}
 	},
 	"repository":

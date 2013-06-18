@@ -21,6 +21,17 @@ if (path.basename(testDir) !== 'test')
 	testDir = path.join(testDir, 'test');
 var attachmentdata = fs.readFileSync(path.join(testDir, 'test.png'));
 
+
+describe('new polyclay types', function()
+{
+	it('adds a set type');
+	it('adds a map:string type');
+	it('adds a map:boolean type');
+	it('adds a map:number type');
+	it('adds a map:date type');
+
+});
+
 describe('cassandra adapter', function()
 {
 	var testKSName = 'polyclay_unit_tests';
@@ -509,23 +520,14 @@ describe('cassandra adapter', function()
 				should.not.exist(err);
 
 				var key = 'cats:frogs';
-				return adapter.connection.cql('SELECT * from %s WHERE key = ?', [adapter.attachfamily, key])
+				var query = 'SELECT * from polyclay_unit_tests.' + adapter.attachfamily + ' WHERE key = ?';
+
+				adapter.connection.cql(query, [key])
 				.then(function(rows)
 				{
 					rows.should.be.ok;
 					rows.should.be.an('array');
-					rows.length.should.equal(1);
-
-					var row = rows[0];
-					var props = {};
-					row.forEach(function(col, value)
-					{
-						props[col] = value;
-					});
-
-					should.not.exist(props.data);
-					should.not.exist(props.body);
-
+					rows.length.should.equal(0);
 					done();
 				}).fail(function(err) { should.not.exist.err; })
 				.done();

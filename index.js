@@ -2,9 +2,50 @@ var
 	_           = require('lodash'),
 	assert      = require('assert'),
 	P           = require('p-promise'),
+	PolyClay    = require('polyclay'),
 	scamandrios = require('scamandrios'),
 	util        = require('util')
 	;
+
+//-------------------------------------------
+// Add new types to polyclay
+
+PolyClay.addType(
+{
+	name:          'set',
+	defaultFunc:   function() { return {}; },
+	validatorFunc: _.isObject,
+});
+
+PolyClay.addType(
+{
+	name:          'map:string',
+	defaultFunc:   function() { return {}; },
+	validatorFunc: _.isObject,
+});
+
+PolyClay.addType(
+{
+	name:          'map:number',
+	defaultFunc:   function() { return {}; },
+	validatorFunc: _.isObject,
+});
+
+PolyClay.addType(
+{
+	name:          'map:date',
+	defaultFunc:   function() { return {}; },
+	validatorFunc: _.isObject,
+});
+
+PolyClay.addType(
+{
+	name:          'map:boolean',
+	defaultFunc:   function() { return {}; },
+	validatorFunc: _.isObject,
+});
+
+//-------------------------------------------
 
 function Defaults()
 {
@@ -187,13 +228,12 @@ CassandraAdapter.prototype.merge = function(key, properties, callback)
 {
 	var self = this;
 
-	var params = [ this.family];
-	var query = 'UPDATE %s  USING CONSISTENCY ALL SET ';
+	var params = [];
+	var query = 'UPDATE ' + this.family + ' SET ';
 
 	_.forOwn(properties, function(v, k)
 	{
-		query += '? = ?, ';
-		params.push(k);
+		query += (k + ' = ?, ');
 		params.push(v);
 	});
 
@@ -272,7 +312,9 @@ CassandraAdapter.prototype.get = function(key, callback)
 	if (Array.isArray(key))
 		return this.getBatch(key, callback);
 
-	this.withKeyspace.then(function() { return self.connection.cql('SELECT * from %s WHERE key = ?', [self.family, key]); })
+	var query = 'SELECT * from ' + this.options.keyspace + '.' + this.family + ' WHERE key = ?';
+
+	this.withKeyspace.then(function() { return self.connection.cql(query, [key]); })
 	.then(function(rows)
 	{
 		rows.forEach(function(row)
@@ -292,12 +334,20 @@ CassandraAdapter.prototype.get = function(key, callback)
 	.done();
 };
 
+function quote(string)
+{
+    return "'" + string.replace(/\'/g, "''") + "'";
+}
+
 CassandraAdapter.prototype.getBatch = function(keylist, callback)
 {
 	var results = [];
 	var self = this;
 
-	this.withKeyspace.then(function() { return self.connection.cql('SELECT * from %s WHERE key IN (%s)', [self.family, keylist]); })
+	var keystring = _.map(keylist, quote).join(', ');
+	var query = 'SELECT * from ' + this.options.keyspace + '.' + this.family + ' WHERE key IN (' + keystring + ')';
+
+	this.withKeyspace.then(function() { return self.connection.cql(query); })
 	.then(function(rows)
 	{
 		rows.forEach(function(row)
@@ -322,7 +372,7 @@ CassandraAdapter.prototype.all = function(callback)
 	var results = [];
 	var self = this;
 
-	this.withKeyspace.then(function() { return self.connection.cql('SELECT * from %s', [self.family]); })
+	this.withKeyspace.then(function() { return self.connection.cql('SELECT * from ' + self.family); })
 	.then(function(rows)
 	{
 		rows.forEach(function(row)
@@ -352,8 +402,9 @@ CassandraAdapter.prototype.attachment = function(key, name, callback)
 	var self = this;
 
 	var cassKey = makeAttachKey(key, name);
+	var query = 'SELECT * from ' + self.attachfamily + ' WHERE key = ?';
 
-	this.withKeyspace.then(function() { return self.connection.cql('SELECT * from %s WHERE key = ?', [self.attachfamily, cassKey]); })
+	this.withKeyspace.then(function() { return self.connection.cql(query, [cassKey]); })
 	.then(function(rows)
 	{
 		if (rows.length === 0)
@@ -391,8 +442,9 @@ CassandraAdapter.prototype.attachment = function(key, name, callback)
 CassandraAdapter.prototype.remove = function(obj, callback)
 {
 	var self = this;
+	var query = 'DELETE FROM ' + self.family + ' WHERE KEY = ?';
 
-	this.withKeyspace.then(function() { return self.connection.cql('DELETE FROM %s WHERE KEY = ?', [self.family, obj.key]); })
+	this.withKeyspace.then(function() { return self.connection.cql(query, [obj.key]); })
 	.then(function(reply)
 	{
 		return self.removeAllAttachments(obj.key);
@@ -420,7 +472,10 @@ CassandraAdapter.prototype.destroyMany = function(objlist, callback)
 		return self.removeAllAttachments(k);
 	});
 
-	P.all(actions).then(function() { return self.connection.cql('DELETE from %s WHERE key IN (%s)', [self.family, keylist.join(', ')]); })
+	var keystring = _.map(keylist, quote).join(', ');
+	var query = 'DELETE from ' + self.family + ' WHERE key IN (' + keystring + ')';
+
+	P.all(actions).then(function() { return self.connection.cql(query); })
 	.then(function(reply)
 	{
 		callback();
