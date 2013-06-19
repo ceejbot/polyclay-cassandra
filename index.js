@@ -13,36 +13,69 @@ var
 PolyClay.addType(
 {
 	name:          'set',
-	defaultFunc:   function() { return {}; },
-	validatorFunc: _.isObject,
+	defaultFunc:   function() { return []; },
+	validatorFunc: function(prop)
+	{
+		if (!Array.isArray(prop)) return false;
+		var unique = _.uniq(prop);
+		return (prop.length === unique.length);
+	},
 });
 
 PolyClay.addType(
 {
 	name:          'map:string',
 	defaultFunc:   function() { return {}; },
-	validatorFunc: _.isObject,
+	validatorFunc: function(prop)
+	{
+		if (!_.isObject(prop)) return false;
+		return _.every(prop, function(value, key)
+		{
+			return _.isString(value);
+		});
+	},
 });
 
 PolyClay.addType(
 {
 	name:          'map:number',
 	defaultFunc:   function() { return {}; },
-	validatorFunc: _.isObject,
+	validatorFunc: function(prop)
+	{
+		if (!_.isObject(prop)) return false;
+		return _.every(prop, function(value, key)
+		{
+			return _.isNumber(value);
+		});
+	},
 });
 
 PolyClay.addType(
 {
 	name:          'map:date',
 	defaultFunc:   function() { return {}; },
-	validatorFunc: _.isObject,
+	validatorFunc: function(prop)
+	{
+		if (!_.isObject(prop)) return false;
+		return _.every(prop, function(value, key)
+		{
+			return _.isDate(value);
+		});
+	},
 });
 
 PolyClay.addType(
 {
 	name:          'map:boolean',
 	defaultFunc:   function() { return {}; },
-	validatorFunc: _.isObject,
+	validatorFunc: function(prop)
+	{
+		if (!_.isObject(prop)) return false;
+		return _.every(prop, function(value, key)
+		{
+			return _.isBoolean(value);
+		});
+	},
 });
 
 //-------------------------------------------

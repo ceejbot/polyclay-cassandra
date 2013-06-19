@@ -24,11 +24,178 @@ var attachmentdata = fs.readFileSync(path.join(testDir, 'test.png'));
 
 describe('new polyclay types', function()
 {
-	it('adds a set type');
-	it('adds a map:string type');
-	it('adds a map:boolean type');
-	it('adds a map:number type');
-	it('adds a map:date type');
+	describe('#set type', function()
+	{
+		var SetModel;
+
+		it('adds a set type', function()
+		{
+			var setDef =
+			{
+				properties:
+				{
+					key:     'string',
+					animals: 'set'
+				}
+			};
+			SetModel = polyclay.Model.buildClass(setDef);
+
+			var obj = new SetModel();
+			obj.should.have.property('animals');
+			obj.animals.should.be.an('array');
+		});
+
+		it('enforces uniqueness in the validator', function()
+		{
+			var obj = new SetModel();
+			obj.animals = ['cat', 'dog', 'coati'];
+			obj.valid().should.equal(true);
+
+			obj.animals.push('coati');
+			obj.valid().should.equal(false);
+		});
+
+	});
+
+	describe('#map:string type', function()
+	{
+		var StringMapModel;
+
+		it('adds a map -> string type', function()
+		{
+			var mapDef =
+			{
+				properties:
+				{
+					key:           'string',
+					petNames:      'map:string',
+				}
+			};
+			StringMapModel = polyclay.Model.buildClass(mapDef);
+
+			var obj = new StringMapModel();
+			obj.should.have.property('petNames');
+			obj.petNames.should.be.an('object');
+		});
+
+		it('fails the is-valid check if one of the values is not a string', function()
+		{
+			var obj = new StringMapModel();
+			obj.key = 'bad';
+			obj.petNames = {};
+			obj.petNames['cat'] = 'Felix';
+			obj.petNames['dog'] = 'Fido';
+			obj.valid().should.equal(true);
+
+			obj.petNames['coati'] = 4;
+			obj.valid().should.equal(false);
+		});
+	});
+
+	describe('#map:boolean type', function()
+	{
+		var BooleanMapModel;
+
+		it('adds a map -> boolean type', function()
+		{
+			var mapDef =
+			{
+				properties:
+				{
+					key:           'string',
+					petsValidated: 'map:boolean',
+				}
+			};
+			BooleanMapModel = polyclay.Model.buildClass(mapDef);
+
+			var obj = new BooleanMapModel();
+			obj.should.have.property('petsValidated');
+			obj.petsValidated.should.be.an('object');
+		});
+
+		it('fails the is-valid check if one of the values is not a boolean', function()
+		{
+			var obj = new BooleanMapModel();
+			obj.key = 'bad';
+			obj.petsValidated = {};
+			obj.petsValidated['cat'] = true;
+			obj.petsValidated['dog'] = false;
+			obj.valid().should.equal(true);
+
+			obj.petsValidated['coati'] = 4;
+			obj.valid().should.equal(false);
+		});
+	});
+
+	describe('#map:number type', function()
+	{
+		var NumberMapModel;
+
+		it('adds a map -> number type', function()
+		{
+			var mapDef =
+			{
+				properties:
+				{
+					key:           'string',
+					petCounts:     'map:number',
+				}
+			};
+			NumberMapModel = polyclay.Model.buildClass(mapDef);
+
+			var obj = new NumberMapModel();
+			obj.should.have.property('petCounts');
+			obj.petCounts.should.be.an('object');
+		});
+
+		it('fails the is-valid check if one of the values is not a number', function()
+		{
+			var obj = new NumberMapModel();
+			obj.key = 'bad';
+			obj.petCounts = {};
+			obj.petCounts['cat'] = 16;
+			obj.petCounts['dog'] = 2;
+			obj.valid().should.equal(true);
+
+			obj.petCounts['coati'] = '4';
+			obj.valid().should.equal(false);
+		});
+	});
+
+	describe('#map:date type', function()
+	{
+		var DateMapModel;
+
+		it('adds a map -> date type', function()
+		{
+			var mapDef =
+			{
+				properties:
+				{
+					key:           'string',
+					petBirthdays:  'map:date'
+				}
+			};
+			DateMapModel = polyclay.Model.buildClass(mapDef);
+
+			var obj = new DateMapModel();
+			obj.should.have.property('petBirthdays');
+			obj.petBirthdays.should.be.an('object');
+		});
+
+		it('fails the is-valid check if one of the values is not a number', function()
+		{
+			var obj = new DateMapModel();
+			obj.key = 'bad';
+			obj.petBirthdays = {};
+			obj.petBirthdays['Bishonen'] = new Date(2002, 6, 14);
+			obj.petBirthdays['Mina'] = new Date(2006, 7, 1);
+			obj.valid().should.equal(true);
+
+			obj.petBirthdays['coati'] = '4';
+			obj.valid().should.equal(false);
+		});
+	});
 
 });
 
