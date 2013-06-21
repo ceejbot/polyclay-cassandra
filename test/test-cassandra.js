@@ -21,7 +21,6 @@ if (path.basename(testDir) !== 'test')
 	testDir = path.join(testDir, 'test');
 var attachmentdata = fs.readFileSync(path.join(testDir, 'test.png'));
 
-
 describe('new polyclay types', function()
 {
 	describe('#set type', function()
@@ -57,6 +56,144 @@ describe('new polyclay types', function()
 
 	});
 
+	describe('#list:string type', function()
+	{
+		var StringListModel;
+
+		it('adds a list -> string type', function()
+		{
+			var listDef =
+			{
+				properties:
+				{
+					key:      'string',
+					petNames: 'list:string'
+				}
+			};
+			StringListModel = polyclay.Model.buildClass(listDef);
+
+			var obj = new StringListModel();
+			obj.should.have.property('petNames');
+			obj.petNames.should.be.an('array');
+		});
+
+		it('fails the is-valid check if one of the elements is not a string', function()
+		{
+			var obj = new StringListModel();
+			obj.key = 'bad';
+			obj.petNames = ['Bishonen', 'Mina'];
+			obj.valid().should.equal(true);
+
+			obj.petNames.push(1);
+			obj.valid().should.equal(false);
+		});
+	});
+
+	describe('#list:number type', function()
+	{
+		var NumberListModel;
+
+		it('adds a list -> number type', function(){
+			var listDef =
+			{
+				properties:
+				{
+					key:          'string',
+					luckyNumbers: 'list:number'
+				}
+			};
+			NumberListModel = polyclay.Model.buildClass(listDef);
+
+			var obj = new NumberListModel();
+			obj.should.have.property('luckyNumbers');
+			obj.luckyNumbers.should.be.an('array');
+		});
+
+		it('fails the is-valid check if one of the elements is not a number', function()
+		{
+			var obj = new NumberListModel();
+			obj.key = 'bad';
+			obj.luckyNumbers = [24, 47, 66];
+			obj.valid().should.equal(true);
+
+			obj.luckyNumbers.push('71');
+			obj.valid().should.equal(false);
+		});
+	});
+
+	describe('#list:date type', function()
+	{
+		var DateListModel;
+
+		it('adds a list -> date type', function(){
+			var listDef =
+			{
+				properties:
+				{
+					key:       'string',
+					birthdays: 'list:date'
+				}
+			};
+			DateListModel = polyclay.Model.buildClass(listDef);
+
+			var obj = new DateListModel();
+			obj.should.have.property('birthdays');
+			obj.birthdays.should.be.an('array');
+		});
+
+		it('fails the is-valid check if one of the elements is not a date', function()
+		{
+			var obj = new DateListModel();
+			obj.key = 'bad';
+			obj.birthdays = [new Date(2002, 6, 14), new Date(2006, 7, 1)];
+			obj.valid().should.equal(true);
+
+			obj.birthdays.push(1154415600000);
+			obj.valid().should.equal(false);
+		});
+	});
+
+	describe('#list:boolean type', function()
+	{
+		var BooleanListModel;
+
+		it('adds a list -> boolean type', function(){
+			var listDef =
+			{
+				properties:
+				{
+					key:       'string',
+					petNames:  'list:string',
+					petsValid: 'list:boolean'
+				}
+			};
+
+			BooleanListModel = polyclay.Model.buildClass(listDef);
+
+			var obj = new BooleanListModel();
+
+			obj.should.have.property('petNames');
+			obj.petNames.should.be.an('array');
+
+			obj.should.have.property('petsValid');
+			obj.petsValid.should.be.an('array');
+		});
+
+		it('fails the is-valid check if one of the elements is not a boolean', function()
+		{
+			var obj = new BooleanListModel();
+			obj.key = 'bad';
+
+			obj.petNames = ['Bishonen', 'Mina'];
+			obj.petsValid = [true, true];
+
+			obj.valid().should.equal(true);
+
+			obj.petsValid.push(1);
+			obj.valid().should.equal(false);
+		});
+	});
+	
 	describe('#map:string type', function()
 	{
 		var StringMapModel;
@@ -722,7 +859,6 @@ describe('cassandra adapter', function()
 			done();
 		});
 	});
-
 
 	it('caches an attachment after it is fetched', function(done)
 	{

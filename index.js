@@ -25,6 +25,54 @@ PolyClay.addType(
 
 PolyClay.addType(
 {
+	name: 'list:string',
+	defaultFunc: function() { return []; },
+	validatorFunc: function(prop)
+	{
+		if (prop == null) return true;
+		if (!Array.isArray(prop)) return false;
+		return _.every(prop, _.isString);
+	}
+});
+
+PolyClay.addType(
+{
+	name: 'list:number',
+	defaultFunc: function() { return []; },
+	validatorFunc: function(prop)
+	{
+		if (prop == null) return true;
+		if (!Array.isArray(prop)) return false;
+		return _.every(prop, _.isNumber);
+	}
+});
+
+PolyClay.addType(
+{
+	name: 'list:date',
+	defaultFunc: function() { return []; },
+	validatorFunc: function(prop)
+	{
+		if (prop == null) return true;
+		if (!Array.isArray(prop)) return false;
+		return _.every(prop, _.isDate);
+	}
+});
+
+PolyClay.addType(
+{
+	name: 'list:boolean',
+	defaultFunc: function() { return []; },
+	validatorFunc: function(prop)
+	{
+		if (prop == null) return true;
+		if (!Array.isArray(prop)) return false;
+		return _.every(prop, _.isBoolean);
+	}
+});
+
+PolyClay.addType(
+{
 	name:          'map:string',
 	defaultFunc:   function() { return {}; },
 	validatorFunc: function(prop)
@@ -569,6 +617,11 @@ CassandraAdapter.prototype.removeAllAttachments = function(key)
 
 var stringifyPat = /^(array|hash|reference|untyped)$/;
 
+function serializeDateMap(d, key, map)
+{
+	map[key] = d.getTime();
+}
+
 function serialize(obj)
 {
 	var struct = obj.serialize();
@@ -594,12 +647,7 @@ function serialize(obj)
 			if (Object.keys(struct[k]).length == 0)
 				delete struct[k];
 			if (types[k] === 'map:date')
-			{
-				_.each(struct[k], function(d, key)
-				{
-					struct[k][key] = d.getTime();
-				});
-			}
+				_.each(struct[k], serializeDateMap);
 		}
 	}
 
