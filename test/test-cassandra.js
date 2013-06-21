@@ -215,6 +215,11 @@ describe('cassandra adapter', function()
 			count:         'number',
 			floating:      'number',
 			required_prop: 'string',
+			pet_types:     'set',
+			vaccinated:    'map:boolean',
+			birthdays:     'map:date',
+			pet_names:     'map:string',
+			pet_counts:    'map:number'
 		},
 		optional:   [ 'computed', 'ephemeral' ],
 		required:   [ 'name', 'is_valid', 'required_prop'],
@@ -282,7 +287,6 @@ describe('cassandra adapter', function()
 			should.not.exist(err);
 			response.should.equal('OK');
 			Model.adapter.keyspace.should.be.an('object');
-			Model.adapter.columnFamily.should.be.an('object');
 			Model.adapter.attachments.should.be.an('object');
 			done();
 		});
@@ -316,7 +320,7 @@ describe('cassandra adapter', function()
 			count:         3,
 			floating:      3.14159,
 			required_prop: 'requirement met',
-			computed:      17
+			computed:      17,
 		});
 
 		instance.save(function(err, reply)
@@ -360,7 +364,6 @@ describe('cassandra adapter', function()
 		});
 	});
 
-
 	it('can fetch in batches', function(done)
 	{
 		var ids = [ instance.key ];
@@ -400,6 +403,175 @@ describe('cassandra adapter', function()
 			should.not.exist(err);
 			itemlist.should.be.an('array');
 			itemlist.length.should.equal(2);
+			done();
+		});
+	});
+
+	it('can save a document with a set field', function(done)
+	{
+		var obj = new Model();
+		obj.update(
+		{
+			key:           '3',
+			name:          'has-set',
+			created:       Date.now(),
+			pet_types:     ['cat', 'dog', 'coati'],
+		});
+
+		obj.save(function(err, reply)
+		{
+			should.not.exist(err);
+			reply.should.be.ok;
+			done();
+		});
+	});
+
+	it('can retrieve a document with a set field', function(done)
+	{
+		Model.get('3', function(err, obj)
+		{
+			should.not.exist(err);
+			obj.name.should.equal('has-set');
+			obj.pet_types.length.should.equal(3);
+			obj.pet_types.indexOf('cat').should.equal(0);
+			obj.pet_types.indexOf('coati').should.equal(1);
+			obj.pet_types.indexOf('dog').should.equal(2);
+			done();
+		});
+	});
+
+	it('can save a document with a map:boolean field', function(done)
+	{
+		var obj = new Model();
+		obj.update(
+		{
+			key:           '4',
+			name:          'has-map-boolean',
+			created:       Date.now(),
+			vaccinated:    { 'cat': true, 'dog': true, 'coati': false },
+		});
+
+		obj.save(function(err, reply)
+		{
+			should.not.exist(err);
+			reply.should.be.ok;
+			done();
+		});
+	});
+
+	it('can retrieve a document with a map:boolean field', function(done)
+	{
+		Model.get('4', function(err, obj)
+		{
+			should.not.exist(err);
+			obj.name.should.equal('has-map-boolean');
+			obj.vaccinated.should.be.an('object');
+			Object.keys(obj.vaccinated).length.should.equal(3);
+			obj.vaccinated.should.have.property('cat');
+			obj.vaccinated.cat.should.equal(true);
+			obj.vaccinated.dog.should.equal(true);
+			obj.vaccinated.coati.should.equal(false);
+			done();
+		});
+	});
+
+	it('can save a document with a map:date field', function(done)
+	{
+		var obj = new Model();
+		obj.update(
+		{
+			key:           '5',
+			name:          'has-map-date',
+			created:       Date.now(),
+			birthdays:     { 'Mina': new Date(2006, 7, 1) },
+		});
+
+		obj.save(function(err, reply)
+		{
+			should.not.exist(err);
+			reply.should.be.ok;
+			done();
+		});
+	});
+
+	it('can retrieve a document with a map:date field', function(done)
+	{
+		Model.get('5', function(err, obj)
+		{
+			should.not.exist(err);
+			obj.name.should.equal('has-map-date');
+			obj.birthdays.should.be.an('object');
+			Object.keys(obj.birthdays).length.should.equal(1);
+			obj.birthdays.should.have.property('Mina');
+			obj.birthdays.Mina.should.be.a('date');
+			done();
+		});
+	});
+
+	it('can save a document with a map:string field', function(done)
+	{
+		var obj = new Model();
+		obj.update(
+		{
+			key:           '6',
+			name:          'has-map-string',
+			created:       Date.now(),
+			pet_names:     { 'cat': 'Mina', 'dog': 'Pixel', coati: 'Rex' },
+		});
+
+		obj.save(function(err, reply)
+		{
+			should.not.exist(err);
+			reply.should.be.ok;
+			done();
+		});
+	});
+
+	it('can retrieve a document with a map:string field', function(done)
+	{
+		Model.get('6', function(err, obj)
+		{
+			should.not.exist(err);
+			obj.name.should.equal('has-map-string');
+			obj.pet_names.should.be.an('object');
+			Object.keys(obj.pet_names).length.should.equal(3);
+			obj.pet_names.cat.should.equal('Mina');
+			obj.pet_names.dog.should.equal('Pixel');
+			obj.pet_names.coati.should.equal('Rex');
+			done();
+		});
+	});
+
+	it('can save a document with a map:number field', function(done)
+	{
+		var obj = new Model();
+		obj.update(
+		{
+			key:           '7',
+			name:          'has-map-number',
+			created:       Date.now(),
+			pet_counts:    { 'cat': 1, 'dog': 2, coati: 4.5 }
+		});
+
+		obj.save(function(err, reply)
+		{
+			should.not.exist(err);
+			reply.should.be.ok;
+			done();
+		});
+	});
+
+	it('can retrieve a document with a map:number field', function(done)
+	{
+		Model.get('7', function(err, obj)
+		{
+			should.not.exist(err);
+			obj.name.should.equal('has-map-number');
+			obj.pet_counts.should.be.an('object');
+			Object.keys(obj.pet_counts).length.should.equal(3);
+			obj.pet_counts.cat.should.equal(1);
+			obj.pet_counts.dog.should.equal(2);
+			obj.pet_counts.coati.should.equal(4.5);
 			done();
 		});
 	});

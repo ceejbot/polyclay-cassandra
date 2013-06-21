@@ -16,6 +16,7 @@ PolyClay.addType(
 	defaultFunc:   function() { return []; },
 	validatorFunc: function(prop)
 	{
+		if (_.isUndefined(prop) || prop === null) return true;
 		if (!Array.isArray(prop)) return false;
 		var unique = _.uniq(prop);
 		return (prop.length === unique.length);
@@ -28,6 +29,7 @@ PolyClay.addType(
 	defaultFunc:   function() { return {}; },
 	validatorFunc: function(prop)
 	{
+		if (_.isUndefined(prop) || prop === null) return true;
 		if (!_.isObject(prop)) return false;
 		return _.every(prop, function(value, key)
 		{
@@ -42,6 +44,7 @@ PolyClay.addType(
 	defaultFunc:   function() { return {}; },
 	validatorFunc: function(prop)
 	{
+		if (_.isUndefined(prop) || prop === null) return true;
 		if (!_.isObject(prop)) return false;
 		return _.every(prop, function(value, key)
 		{
@@ -56,6 +59,7 @@ PolyClay.addType(
 	defaultFunc:   function() { return {}; },
 	validatorFunc: function(prop)
 	{
+		if (_.isUndefined(prop) || prop === null) return true;
 		if (!_.isObject(prop)) return false;
 		return _.every(prop, function(value, key)
 		{
@@ -70,7 +74,7 @@ PolyClay.addType(
 	defaultFunc:   function() { return {}; },
 	validatorFunc: function(prop)
 	{
-		if (!_.isObject(prop)) return false;
+		if (_.isUndefined(prop) || prop === null) return true;
 		return _.every(prop, function(value, key)
 		{
 			return _.isBoolean(value);
@@ -102,20 +106,6 @@ function CassandraAdapter()
 	this.columnFamily = null;
 	this.attachments  = null;
 }
-
-var typeToValidator =
-{
-	'string':  'UTF8Type',
-	'number':  'DoubleType',
-	'boolean': 'BooleanType',
-	'date':    'DateType',
-
-	// for now subobjects are just JSON.stringified
-	'array':     'UTF8Type',
-	'hash':      'UTF8Type',
-	'reference': 'UTF8Type'
-};
-CassandraAdapter.typeToValidator = typeToValidator;
 
 CassandraAdapter.prototype.configure = function(options, modelfunc)
 {
@@ -165,6 +155,23 @@ CassandraAdapter.prototype.getAttachmentTable = function()
 	return this.keyspace.getTableAs(this.attachfamily, 'attachments');
 };
 
+var typeToValidator =
+{
+	'string':      'text',
+	'number':      'double',
+	'boolean':     'boolean',
+	'date':        'timestamp',
+	'set':         'set<text>',
+	'map:string':  'map<text, text>',
+	'map:boolean': 'map<text, boolean>',
+	'map:number':  'map<text, double>',
+	'map:date':    'map<text, timestamp>',
+	'array':       'text',
+	'hash':        'text',
+	'reference':   'text',
+};
+CassandraAdapter.typeToValidator = typeToValidator;
+
 CassandraAdapter.prototype.createModelTable = function()
 {
 	var self = this;
@@ -172,27 +179,25 @@ CassandraAdapter.prototype.createModelTable = function()
 	var throwaway = new self.constructor();
 	var properties = throwaway.propertyTypes();
 
+	var query = 'CREATE TABLE ' + self.family + '(';
+
 	var cols = [];
 	_.forOwn(properties, function(property, name)
 	{
-		if (name === 'key')
-			return;
-
-		var validator = typeToValidator[property] || 'UTF8Type';
-
-		cols.push({
-			name: name,
-			validation_class: validator
-		});
+		var columnType = typeToValidator[property] || 'text';
+		cols.push(name + ' ' + columnType);
 	});
+	query += cols.join(', ');
+	query += ', PRIMARY KEY (key))';
 
-	return self.keyspace.createTableAs(self.family, 'columnFamily',
+	return self.connection.cql(query)
+	.then(function()
 	{
-		description: 'polyclay ' + self.constructor.prototype.singular,
-		columns:     cols
+		return self.keyspace.getTableAs(self.family, 'columnFamily');
 	})
 	.then(function(table)
 	{
+		// cql3 tables don't have column families as such
 		self.columnFamily = table;
 		return table;
 	});
@@ -246,8 +251,23 @@ CassandraAdapter.prototype.save = function(obj, json, callback)
 	assert(obj.key);
 	var self = this;
 
-	this.createModelTable()
-	.then(function(colfamily) { return colfamily.insert(obj.key, serialize(obj)); })
+	var properties = serialize(obj);
+	var params = [];
+	var q1 = 'INSERT INTO ' + this.family + '(';
+	var q2 = ') VALUES (';
+
+	_.forOwn(properties, function(v, k)
+	{
+		q1 += (k + ', ');
+		q2 += '?, ';
+		params.push(v);
+	});
+	q1 = q1.slice(0, q1.length - 2);
+	q2 = q2.slice(0, q2.length - 2);
+	var query = q1 + q2 + ')';
+
+	return this.withKeyspace
+	.then(function() { return self.connection.cql(query, params); })
 	.then(function() { return self.createAttachmentsTable(); })
 	.then(function() { return self.saveAttachments(obj.key, json._attachments); })
 	.then(function(resp) { callback(null, 'OK');})
@@ -547,6 +567,8 @@ CassandraAdapter.prototype.removeAllAttachments = function(key)
 	return P.all(actions);
 };
 
+var stringifyPat = /^(array|hash|reference|untyped)$/;
+
 function serialize(obj)
 {
 	var struct = obj.serialize();
@@ -556,26 +578,52 @@ function serialize(obj)
 	for (var i = 0; i < keys.length; i++)
 	{
 		var k = keys[i];
-		if (('array' === types[k]) || ('hash' === types[k]) || ('reference' === types[k]) || 'untyped' === types[k])
+		if (stringifyPat.test(types[k]))
 			struct[k] = JSON.stringify(struct[k]);
+		else if ('set' === types[k])
+		{
+			if (struct[k].length === 0)
+				delete struct[k];
+			else
+				struct[k]._iset = true;
+		}
+		else if ('date' === types[k])
+			struct[k] = struct[k].getTime();
+		else if (types[k].indexOf('map:') === 0)
+		{
+			if (Object.keys(struct[k]).length == 0)
+				delete struct[k];
+			if (types[k] === 'map:date')
+			{
+				_.each(struct[k], function(d, key)
+				{
+					struct[k][key] = d.getTime();
+				});
+			}
+		}
 	}
 
 	return struct;
 }
 
-function convert(value, type)
+function deserialize(value, type)
 {
 	switch (type)
 	{
-	case 'string':    return value;
-	case 'boolean':   return value;
-	case 'date':      return value;
-	case 'number':    return value;
-	case 'untyped':   return value ? JSON.parse(value) : value;
-	case 'array':     return JSON.parse(value);
-	case 'hash':      return JSON.parse(value);
-	case 'reference': return JSON.parse(value);
-	default:          return JSON.parse(value);
+	case 'string':      return value;
+	case 'boolean':     return value;
+	case 'date':        return new Date(value);
+	case 'number':      return value;
+	case 'untyped':     return value ? JSON.parse(value) : value;
+	case 'array':       return JSON.parse(value);
+	case 'hash':        return JSON.parse(value);
+	case 'reference':   return JSON.parse(value);
+	case 'set':         return value;
+	case 'map:string':  return value;
+	case 'map:boolean': return value;
+	case 'map:date':    return value;
+	case 'map:number':  return value;
+	default:            return JSON.parse(value);
 	}
 }
 
@@ -591,7 +639,7 @@ CassandraAdapter.prototype.inflate = function(hash)
 	_.forOwn(hash, function(v, k)
 	{
 		var type = types[k];
-		converted[k] = k === 'key' ? v : convert(v, type);
+		converted[k] = k === 'key' ? v : deserialize(v, type);
 	});
 
 	obj.update(converted);
