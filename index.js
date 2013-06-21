@@ -10,6 +10,23 @@ var
 //-------------------------------------------
 // Add new types to polyclay
 
+function typedListValidator(type, prop)
+{
+	if (prop === null) return true;
+	if (!Array.isArray(prop)) return false;
+	return _.every(prop, PolyClay.validate[type]);
+}
+
+function typedHashValidator(type, prop)
+{
+	if (_.isUndefined(prop) || prop === null) return true;
+	if (!_.isObject(prop)) return false;
+	return _.every(prop, function(value, key)
+	{
+		return PolyClay.validate[type](value);
+	});
+}
+
 PolyClay.addType(
 {
 	name:          'set',
@@ -27,107 +44,56 @@ PolyClay.addType(
 {
 	name: 'list:string',
 	defaultFunc: function() { return []; },
-	validatorFunc: function(prop)
-	{
-		if (prop == null) return true;
-		if (!Array.isArray(prop)) return false;
-		return _.every(prop, _.isString);
-	}
+	validatorFunc: function(prop) { return typedListValidator('string', prop); }
 });
 
 PolyClay.addType(
 {
 	name: 'list:number',
 	defaultFunc: function() { return []; },
-	validatorFunc: function(prop)
-	{
-		if (prop == null) return true;
-		if (!Array.isArray(prop)) return false;
-		return _.every(prop, _.isNumber);
-	}
+	validatorFunc: function(prop) { return typedListValidator('number', prop); }
 });
 
 PolyClay.addType(
 {
 	name: 'list:date',
 	defaultFunc: function() { return []; },
-	validatorFunc: function(prop)
-	{
-		if (prop == null) return true;
-		if (!Array.isArray(prop)) return false;
-		return _.every(prop, _.isDate);
-	}
+	validatorFunc: function(prop) { return typedListValidator('date', prop); }
 });
 
 PolyClay.addType(
 {
 	name: 'list:boolean',
 	defaultFunc: function() { return []; },
-	validatorFunc: function(prop)
-	{
-		if (prop == null) return true;
-		if (!Array.isArray(prop)) return false;
-		return _.every(prop, _.isBoolean);
-	}
+	validatorFunc: function(prop) { return typedListValidator('boolean', prop); }
 });
 
 PolyClay.addType(
 {
 	name:          'map:string',
 	defaultFunc:   function() { return {}; },
-	validatorFunc: function(prop)
-	{
-		if (_.isUndefined(prop) || prop === null) return true;
-		if (!_.isObject(prop)) return false;
-		return _.every(prop, function(value, key)
-		{
-			return _.isString(value);
-		});
-	},
+	validatorFunc: function(prop) { return typedHashValidator('string', prop); }
 });
 
 PolyClay.addType(
 {
 	name:          'map:number',
 	defaultFunc:   function() { return {}; },
-	validatorFunc: function(prop)
-	{
-		if (_.isUndefined(prop) || prop === null) return true;
-		if (!_.isObject(prop)) return false;
-		return _.every(prop, function(value, key)
-		{
-			return _.isNumber(value);
-		});
-	},
+	validatorFunc: function(prop) { return typedHashValidator('number', prop); }
 });
 
 PolyClay.addType(
 {
 	name:          'map:date',
 	defaultFunc:   function() { return {}; },
-	validatorFunc: function(prop)
-	{
-		if (_.isUndefined(prop) || prop === null) return true;
-		if (!_.isObject(prop)) return false;
-		return _.every(prop, function(value, key)
-		{
-			return _.isDate(value);
-		});
-	},
+	validatorFunc: function(prop) { return typedHashValidator('date', prop); }
 });
 
 PolyClay.addType(
 {
 	name:          'map:boolean',
 	defaultFunc:   function() { return {}; },
-	validatorFunc: function(prop)
-	{
-		if (_.isUndefined(prop) || prop === null) return true;
-		return _.every(prop, function(value, key)
-		{
-			return _.isBoolean(value);
-		});
-	},
+	validatorFunc: function(prop) { return typedHashValidator('boolean', prop); }
 });
 
 //-------------------------------------------
@@ -644,7 +610,7 @@ function serialize(obj)
 			struct[k] = struct[k].getTime();
 		else if (types[k].indexOf('map:') === 0)
 		{
-			if (Object.keys(struct[k]).length == 0)
+			if (Object.keys(struct[k]).length === 0)
 				delete struct[k];
 			if (types[k] === 'map:date')
 				_.each(struct[k], serializeDateMap);
