@@ -515,7 +515,7 @@ CassandraAdapter.prototype.destroyMany = function(objlist, callback)
 	{
 		callback();
 	})
-	.fail(function(err) { console.log(err); callback(err); })
+	.fail(function(err) { callback(err); })
 	.done();
 };
 
