@@ -40,60 +40,21 @@ PolyClay.addType(
 	},
 });
 
-PolyClay.addType(
+_.each(['string', 'number', 'date', 'boolean'], function(type)
 {
-	name: 'list:string',
-	defaultFunc: function() { return []; },
-	validatorFunc: function(prop) { return typedListValidator('string', prop); }
-});
+	PolyClay.addType(
+	{
+		name: 'list:' + type,
+		defaultFunc: function() { return []; },
+		validatorFunc: function(prop) { return typedListValidator(type, prop); }
+	});
 
-PolyClay.addType(
-{
-	name: 'list:number',
-	defaultFunc: function() { return []; },
-	validatorFunc: function(prop) { return typedListValidator('number', prop); }
-});
-
-PolyClay.addType(
-{
-	name: 'list:date',
-	defaultFunc: function() { return []; },
-	validatorFunc: function(prop) { return typedListValidator('date', prop); }
-});
-
-PolyClay.addType(
-{
-	name: 'list:boolean',
-	defaultFunc: function() { return []; },
-	validatorFunc: function(prop) { return typedListValidator('boolean', prop); }
-});
-
-PolyClay.addType(
-{
-	name:          'map:string',
-	defaultFunc:   function() { return {}; },
-	validatorFunc: function(prop) { return typedHashValidator('string', prop); }
-});
-
-PolyClay.addType(
-{
-	name:          'map:number',
-	defaultFunc:   function() { return {}; },
-	validatorFunc: function(prop) { return typedHashValidator('number', prop); }
-});
-
-PolyClay.addType(
-{
-	name:          'map:date',
-	defaultFunc:   function() { return {}; },
-	validatorFunc: function(prop) { return typedHashValidator('date', prop); }
-});
-
-PolyClay.addType(
-{
-	name:          'map:boolean',
-	defaultFunc:   function() { return {}; },
-	validatorFunc: function(prop) { return typedHashValidator('boolean', prop); }
+	PolyClay.addType(
+	{
+		name:          'map:' + type,
+		defaultFunc:   function() { return {}; },
+		validatorFunc: function(prop) { return typedHashValidator(type, prop); }
+	});
 });
 
 //-------------------------------------------
