@@ -27,19 +27,14 @@ function typedHashValidator(type, prop)
 	});
 }
 
-PolyClay.addType(
+function typedSetValidator(type, prop)
 {
-	name:          'set',
-	defaultFunc:   function() { return []; },
-	validatorFunc: function(prop)
-	{
-		if (_.isUndefined(prop) || prop === null) return true;
-		if (!Array.isArray(prop)) return false;
-		var unique = _.uniq(prop);
-		return (prop.length === unique.length);
-	},
-});
-
+	if (_.isUndefined(prop) || prop === null) return true;
+	if (!Array.isArray(prop)) return false;
+	var unique = _.uniq(prop);
+	if (prop.length !== unique.length) return false;
+	return _.every(prop, PolyClay.validate[type]);
+}
 _.each(['string', 'number', 'date', 'boolean'], function(type)
 {
 	PolyClay.addType(
@@ -55,6 +50,16 @@ _.each(['string', 'number', 'date', 'boolean'], function(type)
 		defaultFunc:   function() { return {}; },
 		validatorFunc: function(prop) { return typedHashValidator(type, prop); }
 	});
+
+	if (type !== 'boolean')
+	{
+		PolyClay.addType(
+		{
+			name:          'set:' + type,
+			defaultFunc:   function() { return []; },
+			validatorFunc: function(prop) { return typedSetValidator(type, prop); }
+		});
+	}
 });
 
 //-------------------------------------------
@@ -136,7 +141,9 @@ var typeToValidator =
 	'number':      'double',
 	'boolean':     'boolean',
 	'date':        'timestamp',
-	'set':         'set<text>',
+	'set:string':  'set<text>',
+	'set:number':  'set<double>',
+	'set:date':    'set<timestamp>',
 	'map:string':  'map<text, text>',
 	'map:boolean': 'map<text, boolean>',
 	'map:number':  'map<text, double>',
@@ -558,9 +565,10 @@ function serialize(obj)
 	for (var i = 0; i < keys.length; i++)
 	{
 		var k = keys[i];
+
 		if (stringifyPat.test(types[k]))
 			struct[k] = JSON.stringify(struct[k]);
-		else if ('set' === types[k])
+		else if (types[k].indexOf('set:') === 0)
 		{
 			if (struct[k].length === 0)
 				delete struct[k];
@@ -593,7 +601,9 @@ function deserialize(value, type)
 	case 'array':       return JSON.parse(value);
 	case 'hash':        return JSON.parse(value);
 	case 'reference':   return JSON.parse(value);
-	case 'set':         return value;
+	case 'set:string':  return value;
+	case 'set:date':    return value;
+	case 'set:number':  return value;
 	case 'map:string':  return value;
 	case 'map:boolean': return value;
 	case 'map:date':    return value;

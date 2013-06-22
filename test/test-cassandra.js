@@ -34,7 +34,8 @@ describe('new polyclay types', function()
 				properties:
 				{
 					key:     'string',
-					animals: 'set'
+					animals: 'set:string',
+					silly:   'set:number'
 				}
 			};
 			SetModel = polyclay.Model.buildClass(setDef);
@@ -42,12 +43,14 @@ describe('new polyclay types', function()
 			var obj = new SetModel();
 			obj.should.have.property('animals');
 			obj.animals.should.be.an('array');
+			obj.silly.should.be.an('array');
 		});
 
 		it('enforces uniqueness in the validator', function()
 		{
 			var obj = new SetModel();
 			obj.animals = ['cat', 'dog', 'coati'];
+			obj.silly = [ 2, 4, 6];
 			obj.valid().should.equal(true);
 
 			obj.animals.push('coati');
@@ -193,7 +196,7 @@ describe('new polyclay types', function()
 			obj.valid().should.equal(false);
 		});
 	});
-	
+
 	describe('#map:string type', function()
 	{
 		var StringMapModel;
@@ -352,7 +355,8 @@ describe('cassandra adapter', function()
 			count:         'number',
 			floating:      'number',
 			required_prop: 'string',
-			pet_types:     'set',
+			primes:        'set:number',
+			pet_types:     'set:string',
 			vaccinated:    'map:boolean',
 			birthdays:     'map:date',
 			pet_names:     'map:string',
@@ -553,6 +557,7 @@ describe('cassandra adapter', function()
 			name:          'has-set',
 			created:       Date.now(),
 			pet_types:     ['cat', 'dog', 'coati'],
+			primes:        [3, 5, 7, 11, 13]
 		});
 
 		obj.save(function(err, reply)
@@ -573,6 +578,8 @@ describe('cassandra adapter', function()
 			obj.pet_types.indexOf('cat').should.equal(0);
 			obj.pet_types.indexOf('coati').should.equal(1);
 			obj.pet_types.indexOf('dog').should.equal(2);
+			obj.primes.length.should.equal(5);
+			obj.primes[0].should.equal(3);
 			done();
 		});
 	});
