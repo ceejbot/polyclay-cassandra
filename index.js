@@ -117,11 +117,26 @@ CassandraAdapter.prototype.configure = function(options, modelfunc)
 
 	this.withKeyspace = this.connection.connect().then(function()
 	{
-	    return self.connection.assignKeyspace(self.options.keyspace);
+		return self.connection.assignKeyspace(self.options.keyspace);
 	}).then(function(ks)
 	{
-	    self.keyspace = ks;
-	    return ks;
+		if (Array.isArray(ks))
+		{
+			var promise = _.find(ks, { 'state': 'fulfilled' });
+
+			if (!promise)
+			{
+				var invalidError = new Error('Missing or invalid response.');
+				_.assign(invalidError, { 'keyspace': self.options.keyspace, 'response': ks });
+				throw invalidError;
+			}
+
+			self.keyspace = promise.value;
+		}
+		else
+			self.keyspace = ks;
+
+		return self.keyspace;
 	});
 };
 
@@ -164,11 +179,19 @@ CassandraAdapter.prototype.createModelTable = function()
 	var query = 'CREATE TABLE ' + self.family + '(';
 
 	var cols = [];
+	var key = 'key text';
+
 	_.forOwn(properties, function(property, name)
 	{
 		var columnType = typeToValidator[property] || 'text';
-		cols.push(name + ' ' + columnType);
+		var part = name + ' ' + columnType;
+
+		if (name == 'key')
+			key = part;
+		else
+			cols.push(part);
 	});
+	cols.push(key);
 	query += cols.join(', ');
 	query += ', PRIMARY KEY (key))';
 
@@ -585,6 +608,9 @@ function serialize(obj)
 				_.each(struct[k], serializeDateMap);
 		}
 	}
+
+	if (!struct.key)
+		struct.key = obj.key;
 
 	return struct;
 }
