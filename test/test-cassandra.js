@@ -33,7 +33,7 @@ describe('new polyclay types', function()
 			{
 				properties:
 				{
-					key:     'string',
+					id:      'string',
 					animals: 'set:string',
 					silly:   'set:number'
 				}
@@ -69,7 +69,7 @@ describe('new polyclay types', function()
 			{
 				properties:
 				{
-					key:      'string',
+					id:       'string',
 					petNames: 'list:string'
 				}
 			};
@@ -101,7 +101,7 @@ describe('new polyclay types', function()
 			{
 				properties:
 				{
-					key:          'string',
+					id:           'string',
 					luckyNumbers: 'list:number'
 				}
 			};
@@ -133,7 +133,7 @@ describe('new polyclay types', function()
 			{
 				properties:
 				{
-					key:       'string',
+					id:        'string',
 					birthdays: 'list:date'
 				}
 			};
@@ -165,7 +165,7 @@ describe('new polyclay types', function()
 			{
 				properties:
 				{
-					key:       'string',
+					id:        'string',
 					petNames:  'list:string',
 					petsValid: 'list:boolean'
 				}
@@ -207,7 +207,7 @@ describe('new polyclay types', function()
 			{
 				properties:
 				{
-					key:           'string',
+					id:            'string',
 					petNames:      'map:string',
 				}
 			};
@@ -242,7 +242,7 @@ describe('new polyclay types', function()
 			{
 				properties:
 				{
-					key:           'string',
+					id:            'string',
 					petsValidated: 'map:boolean',
 				}
 			};
@@ -277,7 +277,7 @@ describe('new polyclay types', function()
 			{
 				properties:
 				{
-					key:           'string',
+					id:            'string',
 					petCounts:     'map:number',
 				}
 			};
@@ -312,7 +312,7 @@ describe('new polyclay types', function()
 			{
 				properties:
 				{
-					key:           'string',
+					id:            'string',
 					petBirthdays:  'map:date'
 				}
 			};
@@ -346,7 +346,7 @@ describe('cassandra adapter', function()
 	{
 		properties:
 		{
-			key:           'string',
+			id:            'string',
 			name:          'string',
 			created:       'date',
 			foozles:       'array',
@@ -378,7 +378,7 @@ describe('cassandra adapter', function()
 	before(function()
 	{
 		Model = polyclay.Model.buildClass(modelDefinition);
-		polyclay.persist(Model);
+		polyclay.persist(Model, 'id');
 	});
 
 	it('can connect to cassandra', function(done)
@@ -452,7 +452,7 @@ describe('cassandra adapter', function()
 		instance = new Model();
 		instance.update(
 		{
-			key:           '1',
+			id:            '1',
 			name:          'test',
 			created:       Date.now(),
 			foozles:       ['three', 'two', 'one'],
@@ -553,7 +553,7 @@ describe('cassandra adapter', function()
 		var obj = new Model();
 		obj.update(
 		{
-			key:           '3',
+			id:            '3',
 			name:          'has-set',
 			created:       Date.now(),
 			pet_types:     ['cat', 'dog', 'coati'],
@@ -589,7 +589,7 @@ describe('cassandra adapter', function()
 		var obj = new Model();
 		obj.update(
 		{
-			key:           '4',
+			id:            '4',
 			name:          'has-map-boolean',
 			created:       Date.now(),
 			vaccinated:    { 'cat': true, 'dog': true, 'coati': false },
@@ -624,7 +624,7 @@ describe('cassandra adapter', function()
 		var obj = new Model();
 		obj.update(
 		{
-			key:           '5',
+			id:            '5',
 			name:          'has-map-date',
 			created:       Date.now(),
 			birthdays:     { 'Mina': new Date(2006, 7, 1) },
@@ -657,7 +657,7 @@ describe('cassandra adapter', function()
 		var obj = new Model();
 		obj.update(
 		{
-			key:           '6',
+			id:            '6',
 			name:          'has-map-string',
 			created:       Date.now(),
 			pet_names:     { 'cat': 'Mina', 'dog': 'Pixel', coati: 'Rex' },
@@ -691,7 +691,7 @@ describe('cassandra adapter', function()
 		var obj = new Model();
 		obj.update(
 		{
-			key:           '7',
+			id:            '7',
 			name:          'has-map-number',
 			created:       Date.now(),
 			pet_counts:    { 'cat': 1, 'dog': 2, coati: 4.5 }

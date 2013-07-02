@@ -29,7 +29,7 @@
 	},
 	"peerDependencies":
 	{
-		"polyclay": ">= 1.5.0"
+		"polyclay": ">= 1.5.3"
 	},
 	"dependencies":
 	{

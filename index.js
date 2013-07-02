@@ -179,21 +179,16 @@ CassandraAdapter.prototype.createModelTable = function()
 	var query = 'CREATE TABLE ' + self.family + '(';
 
 	var cols = [];
-	var key = 'key text';
 
 	_.forOwn(properties, function(property, name)
 	{
 		var columnType = typeToValidator[property] || 'text';
 		var part = name + ' ' + columnType;
 
-		if (name == 'key')
-			key = part;
-		else
-			cols.push(part);
+		cols.push(part);
 	});
-	cols.push(key);
 	query += cols.join(', ');
-	query += ', PRIMARY KEY (key))';
+	query += ', PRIMARY KEY (' + throwaway.keyfield + '))';
 
 	return self.connection.cql(query)
 	.then(function()
@@ -296,7 +291,7 @@ CassandraAdapter.prototype.merge = function(key, properties, callback)
 	});
 
 	query = query.slice(0, query.length - 2);
-	query += ' WHERE key = ?';
+	query += ' WHERE ' + self.constructor.prototype.keyfield + ' = ?';
 	params.push(key);
 
 	return this.withKeyspace
@@ -370,7 +365,7 @@ CassandraAdapter.prototype.get = function(key, callback)
 	if (Array.isArray(key))
 		return this.getBatch(key, callback);
 
-	var query = 'SELECT * from ' + this.options.keyspace + '.' + this.family + ' WHERE key = ?';
+	var query = 'SELECT * from ' + this.options.keyspace + '.' + this.family + ' WHERE ' + self.constructor.prototype.keyfield + ' = ?';
 
 	this.withKeyspace.then(function() { return self.connection.cql(query, [key]); })
 	.then(function(rows)
@@ -403,7 +398,7 @@ CassandraAdapter.prototype.getBatch = function(keylist, callback)
 	var self = this;
 
 	var keystring = _.map(keylist, quote).join(', ');
-	var query = 'SELECT * from ' + this.options.keyspace + '.' + this.family + ' WHERE key IN (' + keystring + ')';
+	var query = 'SELECT * from ' + this.options.keyspace + '.' + this.family + ' WHERE ' + self.constructor.prototype.keyfield + ' IN (' + keystring + ')';
 
 	this.withKeyspace.then(function() { return self.connection.cql(query); })
 	.then(function(rows)
@@ -500,7 +495,7 @@ CassandraAdapter.prototype.attachment = function(key, name, callback)
 CassandraAdapter.prototype.remove = function(obj, callback)
 {
 	var self = this;
-	var query = 'DELETE FROM ' + self.family + ' WHERE KEY = ?';
+	var query = 'DELETE FROM ' + self.family + ' WHERE ' + self.constructor.prototype.keyfield + ' = ?';
 
 	this.withKeyspace.then(function() { return self.connection.cql(query, [obj.key]); })
 	.then(function(reply)
@@ -531,7 +526,7 @@ CassandraAdapter.prototype.destroyMany = function(objlist, callback)
 	});
 
 	var keystring = _.map(keylist, quote).join(', ');
-	var query = 'DELETE from ' + self.family + ' WHERE key IN (' + keystring + ')';
+	var query = 'DELETE from ' + self.family + ' WHERE ' + self.constructor.prototype.keyfield + ' IN (' + keystring + ')';
 
 	P.all(actions).then(function() { return self.connection.cql(query); })
 	.then(function(reply)
@@ -609,9 +604,6 @@ function serialize(obj)
 		}
 	}
 
-	if (!struct.key)
-		struct.key = obj.key;
-
 	return struct;
 }
 
@@ -650,7 +642,7 @@ CassandraAdapter.prototype.inflate = function(hash)
 	_.forOwn(hash, function(v, k)
 	{
 		var type = types[k];
-		converted[k] = k === 'key' ? v : deserialize(v, type);
+		converted[k] = k === obj.keyfield ? v : deserialize(v, type);
 	});
 
 	obj.update(converted);
