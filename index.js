@@ -140,11 +140,6 @@ CassandraAdapter.prototype.configure = function(options, modelfunc)
 	});
 };
 
-CassandraAdapter.prototype.getModelTable = function()
-{
-	return this.keyspace.getTableAs(this.family, 'columnFamily');
-};
-
 CassandraAdapter.prototype.getAttachmentTable = function()
 {
 	return this.keyspace.getTableAs(this.attachfamily, 'attachments');
@@ -169,6 +164,8 @@ var typeToValidator =
 };
 CassandraAdapter.typeToValidator = typeToValidator;
 
+CassandraAdapter.prototype.createTableAs = 
+
 CassandraAdapter.prototype.createModelTable = function()
 {
 	var self = this;
@@ -191,15 +188,12 @@ CassandraAdapter.prototype.createModelTable = function()
 	query += ', PRIMARY KEY (' + throwaway.keyfield + '))';
 
 	return self.connection.cql(query)
-	.then(function()
+	.fail(function(error)
 	{
-		return self.keyspace.getTableAs(self.family, 'columnFamily');
-	})
-	.then(function(table)
-	{
-		// cql3 tables don't have column families as such
-		self.columnFamily = table;
-		return table;
+		if (/^Cannot add already existing/i.test(error.why))
+			return 'OK';
+
+		throw error;
 	});
 };
 

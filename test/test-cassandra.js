@@ -432,6 +432,16 @@ describe('cassandra adapter', function()
 			done();
 		});
 	});
+	
+	it('provision may be called twice with no ill effects', function(done)
+	{
+		Model.provision(function(err, response)
+		{
+			should.not.exist(err);
+			response.should.equal('OK');
+			done();
+		});
+	});
 
 	it('throws when asked to save a document without a key', function()
 	{
