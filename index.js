@@ -613,13 +613,13 @@ function deserialize(value, type)
 	case 'array':       return JSON.parse(value);
 	case 'hash':        return JSON.parse(value);
 	case 'reference':   return JSON.parse(value);
-	case 'set:string':  return value;
-	case 'set:date':    return value;
-	case 'set:number':  return value;
-	case 'map:string':  return value;
-	case 'map:boolean': return value;
-	case 'map:date':    return value;
-	case 'map:number':  return value;
+	case 'set:string':
+	case 'set:date':
+	case 'set:number':  return value == null ? [] : value;
+	case 'map:string':
+	case 'map:boolean':
+	case 'map:date':
+	case 'map:number':  return value == null ? {} : value;
 	default:            return JSON.parse(value);
 	}
 }

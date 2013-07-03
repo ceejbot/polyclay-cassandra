@@ -432,7 +432,7 @@ describe('cassandra adapter', function()
 			done();
 		});
 	});
-	
+
 	it('provision may be called twice with no ill effects', function(done)
 	{
 		Model.provision(function(err, response)
@@ -594,6 +594,34 @@ describe('cassandra adapter', function()
 		});
 	});
 
+	it('inflates empty sets', function(done)
+	{
+		var obj = new Model();
+		obj.update(
+		{
+			id:            'empty-set',
+			name:          'has-empty-set',
+			created:       Date.now(),
+			pet_types:     [],
+			primes:        []
+		});
+
+		obj.save(function(err, reply)
+		{
+			should.not.exist(err);
+			reply.should.be.ok;
+
+			Model.get('empty-set', function(err, obj)
+			{
+				should.not.exist(err);
+				obj.name.should.equal('has-empty-set');
+				obj.pet_types.should.deep.equal([]);
+				obj.primes.should.deep.equal([]);
+				done();
+			});
+		});
+	});
+
 	it('can save a document with a map:boolean field', function(done)
 	{
 		var obj = new Model();
@@ -727,6 +755,32 @@ describe('cassandra adapter', function()
 			obj.pet_counts.dog.should.equal(2);
 			obj.pet_counts.coati.should.equal(4.5);
 			done();
+		});
+	});
+
+	it('inflates empty maps', function(done)
+	{
+		var obj = new Model();
+		obj.update(
+		{
+			id:            'empty-map',
+			name:          'has-empty-map',
+			created:       Date.now(),
+			vaccinated:    {}
+		});
+
+		obj.save(function(err, reply)
+		{
+			should.not.exist(err);
+			reply.should.be.ok;
+
+			Model.get('empty-map', function(err, obj)
+			{
+				should.not.exist(err);
+				obj.name.should.equal('has-empty-map');
+				obj.vaccinated.should.deep.equal({});
+				done();
+			});
 		});
 	});
 
