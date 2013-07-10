@@ -152,6 +152,9 @@ describe('new polyclay types', function()
 			obj.valid().should.equal(true);
 
 			obj.birthdays.push(1154415600000);
+			obj.valid().should.equal(true);
+
+			obj.birthdays.push('Invalid Date');
 			obj.valid().should.equal(false);
 		});
 	});
@@ -332,7 +335,7 @@ describe('new polyclay types', function()
 			obj.petBirthdays['Mina'] = new Date(2006, 7, 1);
 			obj.valid().should.equal(true);
 
-			obj.petBirthdays['coati'] = '4';
+			obj.petBirthdays['coati'] = 'string';
 			obj.valid().should.equal(false);
 		});
 	});
@@ -666,6 +669,25 @@ describe('cassandra adapter', function()
 			name:          'has-map-date',
 			created:       Date.now(),
 			birthdays:     { 'Mina': new Date(2006, 7, 1) },
+		});
+
+		obj.save(function(err, reply)
+		{
+			should.not.exist(err);
+			reply.should.be.ok;
+			done();
+		});
+	});
+
+	it('can save a document with a map:date field containing a date-like value', function(done)
+	{
+		var obj = new Model();
+		obj.update(
+		{
+			id:            '6',
+			name:          'has-map-date-like-field',
+			created:       Date.now(),
+			birthdays:     { 'Mina': 1154415600000 }
 		});
 
 		obj.save(function(err, reply)

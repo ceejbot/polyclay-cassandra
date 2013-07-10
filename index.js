@@ -565,7 +565,8 @@ var stringifyPat = /^(array|hash|reference|untyped)$/;
 
 function serializeDateMap(d, key, map)
 {
-	map[key] = d.getTime();
+	var timestamp = +d;
+	map[key] = isFinite(timestamp) ? timestamp : +new Date(d);
 }
 
 function serialize(obj)
