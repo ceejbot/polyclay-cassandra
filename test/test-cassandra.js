@@ -639,8 +639,8 @@ describe('cassandra adapter', function()
 			id:            'set-date',
 			name:          'has-set-date',
 			created:       Date.now(),
-			expiries:      [new Date(2013, 6, 10), 1373353200000, '2013-07-08T07:00:00.000Z'],
-			timestamps:    [new Date(2013, 6, 10), 1373439600000, '2013-07-10T07:00:00.000Z']
+			expiries:      [new Date(Date.UTC(2013, 6, 10)), 1373328000000, '2013-07-08T00:00:00.000Z'],
+			timestamps:    [new Date(Date.UTC(2013, 6, 10)), 1373414400000, '2013-07-10T00:00:00.000Z']
 		});
 
 		model.save(function(err, reply)
@@ -652,10 +652,10 @@ describe('cassandra adapter', function()
 			{
 				should.not.exist(err);
 				model.name.should.equal('has-set-date');
-				model.timestamps.should.deep.equal([new Date(2013, 6, 10), new Date(2013, 6, 10), new Date(2013, 6, 10)]);
+				model.timestamps.should.deep.equal([new Date(Date.UTC(2013, 6, 10)), new Date(Date.UTC(2013, 6, 10)), new Date(Date.UTC(2013, 6, 10))]);
 
 				var expiries = _.sortBy(model.expiries, function(expiry) { return +expiry; });
-				expiries.should.deep.equal([new Date(2013, 6, 8), new Date(2013, 6, 9), new Date(2013, 6, 10)]);
+				expiries.should.deep.equal([new Date(Date.UTC(2013, 6, 8)), new Date(Date.UTC(2013, 6, 9)), new Date(Date.UTC(2013, 6, 10))]);
 				
 				done();
 			});
