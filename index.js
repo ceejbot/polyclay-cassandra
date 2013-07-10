@@ -237,7 +237,7 @@ CassandraAdapter.prototype.provision = function(callback)
 	.then(function()
 	{
 		callback(null, 'OK');
-	}).fail(function(err) { callback(err); })
+	}, callback)
 	.done();
 };
 
@@ -267,8 +267,7 @@ CassandraAdapter.prototype.save = function(obj, json, callback)
 	.then(function() { return self.connection.cql(query, params); })
 	.then(function() { return self.createAttachmentsTable(); })
 	.then(function() { return self.saveAttachments(obj.key, json._attachments); })
-	.then(function(resp) { callback(null, 'OK');})
-	.fail(function(err) { callback(err); })
+	.then(function(resp) { callback(null, 'OK');}, callback)
 	.done();
 };
 
@@ -296,8 +295,7 @@ CassandraAdapter.prototype.merge = function(key, properties, callback)
 	.then(function()
 	{
 		callback(null, 'OK');
-	})
-	.fail(function(err) { callback(err); })
+	}, callback)
 	.done();
 };
 
@@ -318,8 +316,7 @@ CassandraAdapter.prototype.saveAttachment = function(obj, attachment, callback)
 	.then(function(res)
 	{
 		callback(null, 'OK');
-	})
-	.fail(function(err) { callback(err); })
+	}, callback)
 	.done();
 };
 
@@ -379,8 +376,7 @@ CassandraAdapter.prototype.get = function(key, callback)
 		});
 		callback(null, results[0]);
 
-	})
-	.fail(function(err) { callback(err); })
+	}, callback)
 	.done();
 };
 
@@ -412,8 +408,7 @@ CassandraAdapter.prototype.getBatch = function(keylist, callback)
 
 		callback(null, results);
 
-	})
-	.fail(function(err) { callback(err); })
+	}, callback)
 	.done();
 };
 
@@ -436,8 +431,7 @@ CassandraAdapter.prototype.all = function(callback)
 		});
 
 		callback(null, results, true);
-	})
-	.fail(function(err) { callback(err); })
+	}, callback)
 	.done();
 };
 
@@ -484,8 +478,7 @@ CassandraAdapter.prototype.attachment = function(key, name, callback)
 		});
 
 		return callback(null, found ? found.body : null);
-	})
-	.fail(function(err) { callback(err); })
+	}, callback)
 	.done();
 };
 
@@ -501,8 +494,7 @@ CassandraAdapter.prototype.remove = function(obj, callback)
 	}).then(function(res)
 	{
 		callback(null, 'OK');
-	})
-	.fail(function(err) { callback(err); })
+	}, callback)
 	.done();
 };
 
@@ -529,8 +521,7 @@ CassandraAdapter.prototype.destroyMany = function(objlist, callback)
 	.then(function(reply)
 	{
 		callback();
-	})
-	.fail(function(err) { callback(err); })
+	}, callback)
 	.done();
 };
 
@@ -540,8 +531,7 @@ CassandraAdapter.prototype.removeAttachment = function(obj, name, callback)
 	var key = makeAttachKey(obj.key, name);
 	this.getAttachmentTable()
 	.then(function() { return self.attachments.remove(key); })
-	.then(function(res) { callback(null, 'OK'); })
-	.fail(function(err) { callback(err); })
+	.then(function(res) { callback(null, 'OK'); }, callback)
 	.done();
 };
 
