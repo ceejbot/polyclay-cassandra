@@ -8,6 +8,7 @@ var
 	;
 
 var
+	_                = require('lodash'),
 	fs               = require('fs'),
 	path             = require('path'),
 	polyclay         = require('polyclay'),
@@ -360,6 +361,8 @@ describe('cassandra adapter', function()
 			required_prop: 'string',
 			primes:        'set:number',
 			pet_types:     'set:string',
+			expiries:      'set:date',
+			timestamps:    'list:date',
 			vaccinated:    'map:boolean',
 			birthdays:     'map:date',
 			pet_names:     'map:string',
@@ -475,6 +478,8 @@ describe('cassandra adapter', function()
 			floating:      3.14159,
 			required_prop: 'requirement met',
 			computed:      17,
+			expiries:      [Date.now()],
+			timestamps:    [Date.now(), new Date()]
 		});
 
 		instance.save(function(err, reply)
@@ -620,6 +625,38 @@ describe('cassandra adapter', function()
 				obj.name.should.equal('has-empty-set');
 				obj.pet_types.should.deep.equal([]);
 				obj.primes.should.deep.equal([]);
+				done();
+			});
+		});
+	});
+
+	it('can save a document with collections of dates', function(done)
+	{
+		var model = new Model();
+
+		model.update(
+		{
+			id:            'set-date',
+			name:          'has-set-date',
+			created:       Date.now(),
+			expiries:      [new Date(2013, 6, 10), 1373353200000, '2013-07-08T07:00:00.000Z'],
+			timestamps:    [new Date(2013, 6, 10), 1373439600000, '2013-07-10T07:00:00.000Z']
+		});
+
+		model.save(function(err, reply)
+		{
+			should.not.exist(err);
+			reply.should.be.ok;
+
+			Model.get('set-date', function(err, model)
+			{
+				should.not.exist(err);
+				model.name.should.equal('has-set-date');
+				model.timestamps.should.deep.equal([new Date(2013, 6, 10), new Date(2013, 6, 10), new Date(2013, 6, 10)]);
+
+				var expiries = _.sortBy(model.expiries, function(expiry) { return +expiry; });
+				expiries.should.deep.equal([new Date(2013, 6, 8), new Date(2013, 6, 9), new Date(2013, 6, 10)]);
+				
 				done();
 			});
 		});

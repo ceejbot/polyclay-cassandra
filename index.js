@@ -154,6 +154,9 @@ var typeToValidator =
 	'set:string':  'set<text>',
 	'set:number':  'set<double>',
 	'set:date':    'set<timestamp>',
+	'list:string': 'list<string>',
+	'list:number': 'list<double>',
+	'list:date':   'list<timestamp>',
 	'map:string':  'map<text, text>',
 	'map:boolean': 'map<text, boolean>',
 	'map:number':  'map<text, double>',
@@ -563,10 +566,15 @@ CassandraAdapter.prototype.removeAllAttachments = function(key)
 
 var stringifyPat = /^(array|hash|reference|untyped)$/;
 
-function serializeDateMap(d, key, map)
+function serializeDate(d)
 {
 	var timestamp = +d;
-	map[key] = isFinite(timestamp) ? timestamp : +new Date(d);
+	return isFinite(timestamp) ? timestamp : +new Date(d);
+}
+
+function serializeDateCollection(d, prop, collection)
+{
+	collection[prop] = serializeDate(d);
 }
 
 function serialize(obj)
@@ -586,16 +594,23 @@ function serialize(obj)
 			if (struct[k].length === 0)
 				delete struct[k];
 			else
+			{
+				if (types[k] === 'set:date')
+					_.each(struct[k], serializeDateCollection);
+
 				struct[k]._iset = true;
+			}
 		}
+		else if (types[k] === 'list:date')
+			_.each(struct[k], serializeDateCollection);
 		else if ('date' === types[k])
-			struct[k] = struct[k].getTime();
+			struct[k] = serializeDate(struct[k]);
 		else if (types[k].indexOf('map:') === 0)
 		{
 			if (Object.keys(struct[k]).length === 0)
 				delete struct[k];
 			if (types[k] === 'map:date')
-				_.each(struct[k], serializeDateMap);
+				_.forOwn(struct[k], serializeDateCollection);
 		}
 	}
 
@@ -614,6 +629,9 @@ function deserialize(value, type)
 	case 'array':       return JSON.parse(value);
 	case 'hash':        return JSON.parse(value);
 	case 'reference':   return JSON.parse(value);
+	case 'list:string':
+	case 'list:date':
+	case 'list:number':
 	case 'set:string':
 	case 'set:date':
 	case 'set:number':  return value == null ? [] : value;
