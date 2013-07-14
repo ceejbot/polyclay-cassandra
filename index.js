@@ -35,7 +35,7 @@ function typedSetValidator(type, prop)
 	if (prop.length !== unique.length) return false;
 	return _.every(prop, PolyClay.validate[type]);
 }
-_.each(['string', 'number', 'date', 'boolean'], function(type)
+_.each(['string', 'number', 'date', 'boolean', 'uuid', 'timeuuid'], function(type)
 {
 	PolyClay.addType(
 	{
@@ -60,6 +60,23 @@ _.each(['string', 'number', 'date', 'boolean'], function(type)
 			validatorFunc: function(prop) { return typedSetValidator(type, prop); }
 		});
 	}
+});
+
+var regexUUID = /^[a-f\d]{8}-[a-f\d]{4}-[14][a-f\d]{3}-[89ab][a-f\d]{3}-[a-f\d]{12}$/i;
+var regexTimeUUID = /^[a-f\d]{8}-[a-f\d]{4}-1[a-f\d]{3}-[89ab][a-f\d]{3}-[a-f\d]{12}$/i;
+
+PolyClay.addType(
+{
+	name:          'uuid',
+	defaultFunc:   function() { return null; },
+	validatorFunc: function(prop) { return prop == null || regexUUID.test(prop); }
+});
+
+PolyClay.addType(
+{
+	name:          'timeuuid',
+	defaultFunc:   function() { return null; },
+	validatorFunc: function(prop) { return prop == null || regexTimeUUID.test(prop); }
 });
 
 //-------------------------------------------
@@ -147,23 +164,31 @@ CassandraAdapter.prototype.getAttachmentTable = function()
 
 var typeToValidator =
 {
-	'string':      'text',
-	'number':      'double',
-	'boolean':     'boolean',
-	'date':        'timestamp',
-	'set:string':  'set<text>',
-	'set:number':  'set<double>',
-	'set:date':    'set<timestamp>',
-	'list:string': 'list<string>',
-	'list:number': 'list<double>',
-	'list:date':   'list<timestamp>',
-	'map:string':  'map<text, text>',
-	'map:boolean': 'map<text, boolean>',
-	'map:number':  'map<text, double>',
-	'map:date':    'map<text, timestamp>',
-	'array':       'text',
-	'hash':        'text',
-	'reference':   'text',
+	'string':        'text',
+	'number':        'double',
+	'boolean':       'boolean',
+	'date':          'timestamp',
+	'uuid':          'uuid',
+	'timeuuid':      'timeuuid',
+	'set:string':    'set<text>',
+	'set:number':    'set<double>',
+	'set:date':      'set<timestamp>',
+	'set:uuid':      'set<uuid>',
+	'set:timeuuid':  'set<timeuuid>',
+	'list:string':   'list<string>',
+	'list:number':   'list<double>',
+	'list:date':     'list<timestamp>',
+	'list:uuid':     'list<uuid>',
+	'list:timeuuid': 'list<timeuuid>',
+	'map:string':    'map<text, text>',
+	'map:boolean':   'map<text, boolean>',
+	'map:number':    'map<text, double>',
+	'map:date':      'map<text, timestamp>',
+	'map:uuid':      'map<text, uuid>',
+	'map:timeuuid':  'map<text, timeuuid>',
+	'array':         'text',
+	'hash':          'text',
+	'reference':     'text',
 };
 CassandraAdapter.typeToValidator = typeToValidator;
 
@@ -607,28 +632,65 @@ function serialize(obj)
 	return struct;
 }
 
+function deserializeCollection(collection, type)
+{
+	if (collection == null)
+		return [];
+
+	return _.map(collection, function(value)
+	{
+		return deserialize(value, type);
+	});
+}
+
+function deserializeMap(map, type)
+{
+	if (map == null)
+		return {};
+
+	var result = {};
+
+	_.forOwn(map, function(value, key)
+	{
+		result[key] = deserialize(value, type);
+	});
+
+	return result;
+}
+
 function deserialize(value, type)
 {
 	switch (type)
 	{
-	case 'string':      return value;
-	case 'boolean':     return value;
-	case 'date':        return new Date(value);
-	case 'number':      return value;
-	case 'untyped':     return value ? JSON.parse(value) : value;
-	case 'array':       return JSON.parse(value);
-	case 'hash':        return JSON.parse(value);
-	case 'reference':   return JSON.parse(value);
+	case 'string':        return value;
+	case 'boolean':       return value;
+	case 'date':          return new Date(value);
+	case 'number':        return value;
+	case 'uuid':
+	case 'timeuuid':      return value == null ? null : String(value);
+	case 'untyped':       return value ? JSON.parse(value) : value;
+	case 'array':         return JSON.parse(value);
+	case 'hash':          return JSON.parse(value);
+	case 'reference':     return JSON.parse(value);
+
 	case 'list:string':
+	case 'set:string':    return deserializeCollection(value, 'string');
 	case 'list:date':
+	case 'set:date':      return deserializeCollection(value, 'date');
+	case 'list:uuid':
+	case 'set:uuid':      return deserializeCollection(value, 'uuid');
+	case 'list:timeuuid':
+	case 'set:timeuuid':  return deserializeCollection(value, 'timeuuid');
 	case 'list:number':
-	case 'set:string':
-	case 'set:date':
-	case 'set:number':  return value == null ? [] : value;
-	case 'map:string':
-	case 'map:boolean':
-	case 'map:date':
-	case 'map:number':  return value == null ? {} : value;
+	case 'set:number':    return deserializeCollection(value, 'number');
+
+	case 'map:string':    return deserializeMap(value, 'string');
+	case 'map:boolean':   return deserializeMap(value, 'boolean');
+	case 'map:date':      return deserializeMap(value, 'date');
+	case 'map:uuid':      return deserializeMap(value, 'uuid');
+	case 'map:timeuuid':  return deserializeMap(value, 'timeuuid');
+	case 'map:number':    return deserializeMap(value, 'number');
+
 	default:            return JSON.parse(value);
 	}
 }

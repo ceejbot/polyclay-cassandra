@@ -14,6 +14,7 @@ var
 	polyclay         = require('polyclay'),
 	scamandrios      = require('scamandrios'),
 	util             = require('util'),
+	uuid             = require('node-uuid'),
 	CassandraAdapter = require('../index')
 	;
 
@@ -341,6 +342,116 @@ describe('new polyclay types', function()
 		});
 	});
 
+	describe('#uuid type', function()
+	{
+		var UUIDMapModel;
+
+		it('adds a uuid type', function()
+		{
+			var mapDef =
+			{
+				properties:
+				{
+					id:         'uuid',
+					timestamps: 'set:uuid'
+				},
+				required: ['id']
+			};
+			UUIDMapModel = polyclay.Model.buildClass(mapDef);
+
+			var obj = new UUIDMapModel();
+			obj.should.have.property('id');
+			should.equal(obj.id, null);
+
+			obj.should.have.property('timestamps');
+			obj.timestamps.should.be.an('array');
+		});
+
+		it('fails the is-valid check if one of the values is not a uuid', function()
+		{
+			var obj = new UUIDMapModel();
+			obj.timestamp = Date.now();
+
+			should.equal(obj.id, null);
+			obj.valid().should.equal(true);
+
+			obj.id = uuid.v4();
+			obj.valid().should.equal(true);
+
+			obj.id = uuid.v1();
+			obj.valid().should.equal(true);
+
+			function shouldThrow()
+			{
+				obj.id = 'coati';
+			}
+			shouldThrow.should.throw(Error);
+
+			obj.timestamps.push(uuid.v1());
+			obj.valid().should.equal(true);
+
+			obj.timestamps.push(uuid.v4());
+			obj.valid().should.equal(true);
+
+			obj.timestamps.push('coati');
+			obj.valid().should.equal(false);
+		});
+	});
+
+	describe('#timeuuid type', function()
+	{
+		var TimeUUIDMapModel;
+
+		it('adds a timeuuid type', function()
+		{
+			var mapDef =
+			{
+				properties:
+				{
+					id:   'timeuuid',
+					pets: 'map:timeuuid'
+				},
+				required: ['id']
+			};
+			TimeUUIDMapModel = polyclay.Model.buildClass(mapDef);
+
+			var obj = new TimeUUIDMapModel();
+			obj.should.have.property('id');
+			should.equal(obj.id, null);
+
+			obj.should.have.property('pets');
+			obj.pets.should.be.an('object');
+		});
+
+		it('fails the is-valid check if one of the values is not a timeuuid', function()
+		{
+			var obj = new TimeUUIDMapModel();
+			obj.timestamp = Date.now();
+
+			should.equal(obj.id, null);
+			obj.valid().should.equal(true);
+
+			obj.id = uuid.v1();
+			obj.valid().should.equal(true);
+
+			function shouldThrow()
+			{
+				obj.id = uuid.v4();
+			}
+			shouldThrow.should.throw(Error);
+
+			obj.pets['Bishonen'] = uuid.v1();
+			obj.pets['Mina'] = uuid.v1();
+			obj.valid().should.equal(true);
+
+			obj.pets['coati'] = uuid.v4();
+			obj.valid().should.equal(false);
+
+			obj.pets['kiwi'] = 'string';
+			obj.valid().should.equal(false);
+		});
+	});
+
 });
 
 describe('cassandra adapter', function()
@@ -352,6 +463,14 @@ describe('cassandra adapter', function()
 		{
 			id:            'string',
 			name:          'string',
+			unique_id:     'uuid',
+			time_id:       'timeuuid',
+			id_list:       'list:uuid',
+			time_id_list:  'list:timeuuid',
+			id_set:        'set:uuid',
+			time_id_set:   'set:timeuuid',
+			id_map:        'map:uuid',
+			time_id_map:   'map:timeuuid',
 			created:       'date',
 			foozles:       'array',
 			snozzers:      'hash',
@@ -470,6 +589,8 @@ describe('cassandra adapter', function()
 		{
 			id:            '1',
 			name:          'test',
+			unique_id:     uuid.v4(),
+			time_id:       uuid.v1(),
 			created:       Date.now(),
 			foozles:       ['three', 'two', 'one'],
 			snozzers:      { field: 'value' },
@@ -479,7 +600,13 @@ describe('cassandra adapter', function()
 			required_prop: 'requirement met',
 			computed:      17,
 			expiries:      [Date.now()],
-			timestamps:    [Date.now(), new Date()]
+			timestamps:    [Date.now(), new Date()],
+			id_list:       [uuid.v1(), uuid.v4()],
+			time_id_list:  [uuid.v1(), uuid.v1()],
+			id_set:        [uuid.v4(), uuid.v1()],
+			time_id_set:   [uuid.v1(), uuid.v1()],
+			id_map:        { 'v1': uuid.v1(), 'v4': uuid.v4() },
+			time_id_map:   { '1a': uuid.v1(), '1b': uuid.v1() }
 		});
 
 		instance.save(function(err, reply)
@@ -504,6 +631,27 @@ describe('cassandra adapter', function()
 			retrieved.floating.should.equal(instance.floating);
 			retrieved.computed.should.equal(instance.computed);
 			retrieved.created.getTime().should.equal(instance.created.getTime());
+
+			retrieved.unique_id.should.equal(instance.unique_id);
+			retrieved.time_id.should.equal(instance.time_id);
+
+			retrieved.id_list.should.deep.equal(instance.id_list);
+			retrieved.time_id_list.should.deep.equal(instance.time_id_list);
+
+			var retrievedIds = retrieved.id_set.sort();
+			var retrievedTimeIds = retrieved.time_id_set.sort();
+
+			// The `slice` call is necessary because the adapter adds an
+			// `_iset` property to the original.
+			var originalIds = instance.id_set.slice(0).sort();
+			var originalTimeIds = instance.time_id_set.slice(0).sort();
+
+			retrievedIds.should.deep.equal(originalIds);
+			retrievedTimeIds.should.deep.equal(originalTimeIds);
+
+			retrieved.id_map.should.deep.equal(instance.id_map);
+			retrieved.time_id_map.should.deep.equal(instance.time_id_map);
+
 			retrieved.isDirty().should.not.be.ok;
 
 			done();
@@ -657,7 +805,7 @@ describe('cassandra adapter', function()
 
 				var expiries = _.sortBy(model.expiries, function(expiry) { return +expiry; });
 				expiries.should.deep.equal([new Date(Date.UTC(2013, 6, 8)), new Date(Date.UTC(2013, 6, 9)), new Date(Date.UTC(2013, 6, 10))]);
-				
+
 				done();
 			});
 		});

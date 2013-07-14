@@ -39,9 +39,10 @@
 	},
 	"devDependencies":
 	{
-		"mocha":      "*",
-		"chai":       "*",
 		"blanket":    "*",
+		"chai":       "*",
+		"mocha":      "*",
+		"node-uuid":  "*",
 		"travis-cov": "*"
 	},
 	"keywords":
