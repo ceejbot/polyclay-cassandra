@@ -504,6 +504,7 @@ describe('cassandra adapter', function()
 			retrieved.floating.should.equal(instance.floating);
 			retrieved.computed.should.equal(instance.computed);
 			retrieved.created.getTime().should.equal(instance.created.getTime());
+			retrieved.isDirty().should.not.be.ok;
 
 			done();
 		});

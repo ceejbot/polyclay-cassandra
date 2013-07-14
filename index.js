@@ -648,7 +648,7 @@ CassandraAdapter.prototype.inflate = function(hash)
 		converted[k] = k === obj.keyfield ? v : deserialize(v, type);
 	});
 
-	obj.update(converted);
+	obj.initFromStorage(converted);
 	return obj;
 };
 
