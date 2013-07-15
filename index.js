@@ -405,17 +405,12 @@ CassandraAdapter.prototype.get = function(key, callback)
 	.done();
 };
 
-function quote(string)
-{
-    return "'" + string.replace(/\'/g, "''") + "'";
-}
-
 CassandraAdapter.prototype.getBatch = function(keylist, callback)
 {
 	var results = [];
 	var self = this;
 
-	var keystring = _.map(keylist, quote).join(', ');
+	var keystring = _.map(keylist, scamandrios.helpers.quote).join(', ');
 	var query = 'SELECT * from ' + this.options.keyspace + '.' + this.family + ' WHERE ' + self.constructor.prototype.keyfield + ' IN (' + keystring + ')';
 
 	this.withKeyspace.then(function() { return self.connection.cql(query); })
@@ -539,7 +534,7 @@ CassandraAdapter.prototype.destroyMany = function(objlist, callback)
 		return self.removeAllAttachments(k);
 	});
 
-	var keystring = _.map(keylist, quote).join(', ');
+	var keystring = _.map(keylist, scamandrios.helpers.quote).join(', ');
 	var query = 'DELETE from ' + self.family + ' WHERE ' + self.constructor.prototype.keyfield + ' IN (' + keystring + ')';
 
 	P.all(actions).then(function() { return self.connection.cql(query); })
@@ -595,36 +590,36 @@ function serializeDateCollection(d, prop, collection)
 function serialize(obj)
 {
 	var struct = obj.serialize();
-	var types = obj.propertyTypes();
 
 	var keys = Object.keys(struct);
 	for (var i = 0; i < keys.length; i++)
 	{
 		var k = keys[i];
+		var type = obj.propertyType(k);
 
-		if (stringifyPat.test(types[k]))
+		if (stringifyPat.test(type))
 			struct[k] = JSON.stringify(struct[k]);
-		else if (types[k].indexOf('set:') === 0)
+		else if (type.lastIndexOf('set:', 0) === 0)
 		{
 			if (struct[k].length === 0)
 				delete struct[k];
 			else
 			{
-				if (types[k] === 'set:date')
+				if (type === 'set:date')
 					_.each(struct[k], serializeDateCollection);
 
 				struct[k]._iset = true;
 			}
 		}
-		else if (types[k] === 'list:date')
+		else if (type === 'list:date')
 			_.each(struct[k], serializeDateCollection);
-		else if ('date' === types[k])
+		else if (type === 'date')
 			struct[k] = serializeDate(struct[k]);
-		else if (types[k].indexOf('map:') === 0)
+		else if (type.lastIndexOf('map:', 0) === 0)
 		{
-			if (Object.keys(struct[k]).length === 0)
+			if (_.isEmpty(struct[k]))
 				delete struct[k];
-			if (types[k] === 'map:date')
+			else if (type === 'map:date')
 				_.forOwn(struct[k], serializeDateCollection);
 		}
 	}
@@ -691,7 +686,7 @@ function deserialize(value, type)
 	case 'map:timeuuid':  return deserializeMap(value, 'timeuuid');
 	case 'map:number':    return deserializeMap(value, 'number');
 
-	default:            return JSON.parse(value);
+	default:              return JSON.parse(value);
 	}
 }
 
@@ -701,13 +696,12 @@ CassandraAdapter.prototype.inflate = function(hash)
 		return;
 
 	var obj = new this.constructor();
-	var types = obj.propertyTypes();
 
 	var converted = {};
 	_.forOwn(hash, function(v, k)
 	{
-		var type = types[k];
-		converted[k] = k === obj.keyfield ? v : deserialize(v, type);
+		var type = obj.propertyType(k);
+		converted[k] = deserialize(v, type);
 	});
 
 	obj.initFromStorage(converted);

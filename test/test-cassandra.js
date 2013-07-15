@@ -461,9 +461,8 @@ describe('cassandra adapter', function()
 	{
 		properties:
 		{
-			id:            'string',
+			id:            'uuid',
 			name:          'string',
-			unique_id:     'uuid',
 			time_id:       'timeuuid',
 			id_list:       'list:uuid',
 			time_id_list:  'list:timeuuid',
@@ -587,9 +586,8 @@ describe('cassandra adapter', function()
 		instance = new Model();
 		instance.update(
 		{
-			id:            '1',
+			id:            uuid.v4(),
 			name:          'test',
-			unique_id:     uuid.v4(),
 			time_id:       uuid.v1(),
 			created:       Date.now(),
 			foozles:       ['three', 'two', 'one'],
@@ -632,7 +630,6 @@ describe('cassandra adapter', function()
 			retrieved.computed.should.equal(instance.computed);
 			retrieved.created.getTime().should.equal(instance.created.getTime());
 
-			retrieved.unique_id.should.equal(instance.unique_id);
 			retrieved.time_id.should.equal(instance.time_id);
 
 			retrieved.id_list.should.deep.equal(instance.id_list);
@@ -671,16 +668,19 @@ describe('cassandra adapter', function()
 			done();
 		});
 	});
+	
+	var testBatch;
 
 	it('can fetch in batches', function(done)
 	{
 		var ids = [ instance.key ];
-		var obj = new Model();
-		obj.name = 'two';
-		obj.key = '2';
-		obj.save(function(err, response)
+		testBatch = new Model();
+		testBatch.name = 'two';
+		testBatch.key = uuid.v4();
+		testBatch.save(function(err, response)
 		{
-			ids.push(obj.key);
+			should.not.exist(err);
+			ids.push(testBatch.key);
 
 			Model.get(ids, function(err, itemlist)
 			{
@@ -694,7 +694,7 @@ describe('cassandra adapter', function()
 
 	it('the adapter get() can handle an id or an array of ids', function(done)
 	{
-		var ids = [ '1', '2' ];
+		var ids = [ instance.key, testBatch.key ];
 		Model.adapter.get(ids, function(err, itemlist)
 		{
 			should.not.exist(err);
@@ -714,20 +714,22 @@ describe('cassandra adapter', function()
 			done();
 		});
 	});
+	
+	var setModel;
 
 	it('can save a document with a set field', function(done)
 	{
-		var obj = new Model();
-		obj.update(
+		setModel = new Model();
+		setModel.update(
 		{
-			id:            '3',
+			id:            uuid.v4(),
 			name:          'has-set',
 			created:       Date.now(),
 			pet_types:     ['cat', 'dog', 'coati'],
 			primes:        [3, 5, 7, 11, 13]
 		});
 
-		obj.save(function(err, reply)
+		setModel.save(function(err, reply)
 		{
 			should.not.exist(err);
 			reply.should.be.ok;
@@ -737,7 +739,7 @@ describe('cassandra adapter', function()
 
 	it('can retrieve a document with a set field', function(done)
 	{
-		Model.get('3', function(err, obj)
+		Model.get(setModel.key, function(err, obj)
 		{
 			should.not.exist(err);
 			obj.name.should.equal('has-set');
@@ -753,22 +755,22 @@ describe('cassandra adapter', function()
 
 	it('inflates empty sets', function(done)
 	{
-		var obj = new Model();
-		obj.update(
+		var emptySetModel = new Model();
+		emptySetModel.update(
 		{
-			id:            'empty-set',
+			id:            uuid.v4(),
 			name:          'has-empty-set',
 			created:       Date.now(),
 			pet_types:     [],
 			primes:        []
 		});
 
-		obj.save(function(err, reply)
+		emptySetModel.save(function(err, reply)
 		{
 			should.not.exist(err);
 			reply.should.be.ok;
 
-			Model.get('empty-set', function(err, obj)
+			Model.get(emptySetModel.key, function(err, obj)
 			{
 				should.not.exist(err);
 				obj.name.should.equal('has-empty-set');
@@ -785,7 +787,7 @@ describe('cassandra adapter', function()
 
 		model.update(
 		{
-			id:            'set-date',
+			id:            uuid.v4(),
 			name:          'has-set-date',
 			created:       Date.now(),
 			expiries:      [new Date(Date.UTC(2013, 6, 10)), 1373328000000, '2013-07-08T00:00:00.000Z'],
@@ -797,7 +799,7 @@ describe('cassandra adapter', function()
 			should.not.exist(err);
 			reply.should.be.ok;
 
-			Model.get('set-date', function(err, model)
+			Model.get(model.key, function(err, model)
 			{
 				should.not.exist(err);
 				model.name.should.equal('has-set-date');
@@ -810,19 +812,21 @@ describe('cassandra adapter', function()
 			});
 		});
 	});
+	
+	var mapBooleanModel;
 
 	it('can save a document with a map:boolean field', function(done)
 	{
-		var obj = new Model();
-		obj.update(
+		mapBooleanModel = new Model();
+		mapBooleanModel.update(
 		{
-			id:            '4',
+			id:            uuid.v4(),
 			name:          'has-map-boolean',
 			created:       Date.now(),
 			vaccinated:    { 'cat': true, 'dog': true, 'coati': false },
 		});
 
-		obj.save(function(err, reply)
+		mapBooleanModel.save(function(err, reply)
 		{
 			should.not.exist(err);
 			reply.should.be.ok;
@@ -832,7 +836,7 @@ describe('cassandra adapter', function()
 
 	it('can retrieve a document with a map:boolean field', function(done)
 	{
-		Model.get('4', function(err, obj)
+		Model.get(mapBooleanModel.key, function(err, obj)
 		{
 			should.not.exist(err);
 			obj.name.should.equal('has-map-boolean');
@@ -845,38 +849,47 @@ describe('cassandra adapter', function()
 			done();
 		});
 	});
-
-	it('can save a document with a map:date field', function(done)
+	
+	it('can save a document with a map:date field containing a date-like value', function(done)
 	{
 		var obj = new Model();
 		obj.update(
 		{
-			id:            '5',
-			name:          'has-map-date',
+			id:            uuid.v4(),
+			name:          'has-map-date-like-field',
 			created:       Date.now(),
-			birthdays:     { 'Mina': new Date(2006, 7, 1) },
+			birthdays:     { 'Mina': 1154390400000 }
 		});
 
 		obj.save(function(err, reply)
 		{
 			should.not.exist(err);
 			reply.should.be.ok;
-			done();
+			
+			Model.get(obj.key, function(err, model)
+			{
+				should.not.exist(err);
+				model.name.should.equal('has-map-date-like-field');
+				model.birthdays.should.deep.equal({ 'Mina': new Date(Date.UTC(2006, 7, 1)) });
+				done();
+			});
 		});
 	});
+	
+	var mapDateModel;
 
-	it('can save a document with a map:date field containing a date-like value', function(done)
+	it('can save a document with a map:date field', function(done)
 	{
-		var obj = new Model();
-		obj.update(
+		mapDateModel = new Model();
+		mapDateModel.update(
 		{
-			id:            '6',
-			name:          'has-map-date-like-field',
+			id:            uuid.v4(),
+			name:          'has-map-date',
 			created:       Date.now(),
-			birthdays:     { 'Mina': 1154415600000 }
+			birthdays:     { 'Mina': new Date(2006, 7, 1) },
 		});
 
-		obj.save(function(err, reply)
+		mapDateModel.save(function(err, reply)
 		{
 			should.not.exist(err);
 			reply.should.be.ok;
@@ -886,7 +899,7 @@ describe('cassandra adapter', function()
 
 	it('can retrieve a document with a map:date field', function(done)
 	{
-		Model.get('5', function(err, obj)
+		Model.get(mapDateModel.key, function(err, obj)
 		{
 			should.not.exist(err);
 			obj.name.should.equal('has-map-date');
@@ -897,19 +910,21 @@ describe('cassandra adapter', function()
 			done();
 		});
 	});
+	
+	var mapStringModel;
 
 	it('can save a document with a map:string field', function(done)
 	{
-		var obj = new Model();
-		obj.update(
+		mapStringModel = new Model();
+		mapStringModel.update(
 		{
-			id:            '6',
+			id:            uuid.v4(),
 			name:          'has-map-string',
 			created:       Date.now(),
 			pet_names:     { 'cat': 'Mina', 'dog': 'Pixel', coati: 'Rex' },
 		});
 
-		obj.save(function(err, reply)
+		mapStringModel.save(function(err, reply)
 		{
 			should.not.exist(err);
 			reply.should.be.ok;
@@ -919,7 +934,7 @@ describe('cassandra adapter', function()
 
 	it('can retrieve a document with a map:string field', function(done)
 	{
-		Model.get('6', function(err, obj)
+		Model.get(mapStringModel.key, function(err, obj)
 		{
 			should.not.exist(err);
 			obj.name.should.equal('has-map-string');
@@ -931,19 +946,21 @@ describe('cassandra adapter', function()
 			done();
 		});
 	});
+	
+	var mapNumberModel;
 
 	it('can save a document with a map:number field', function(done)
 	{
-		var obj = new Model();
-		obj.update(
+		mapNumberModel = new Model();
+		mapNumberModel.update(
 		{
-			id:            '7',
+			id:            uuid.v4(),
 			name:          'has-map-number',
 			created:       Date.now(),
 			pet_counts:    { 'cat': 1, 'dog': 2, coati: 4.5 }
 		});
 
-		obj.save(function(err, reply)
+		mapNumberModel.save(function(err, reply)
 		{
 			should.not.exist(err);
 			reply.should.be.ok;
@@ -953,7 +970,7 @@ describe('cassandra adapter', function()
 
 	it('can retrieve a document with a map:number field', function(done)
 	{
-		Model.get('7', function(err, obj)
+		Model.get(mapNumberModel.key, function(err, obj)
 		{
 			should.not.exist(err);
 			obj.name.should.equal('has-map-number');
@@ -971,7 +988,7 @@ describe('cassandra adapter', function()
 		var obj = new Model();
 		obj.update(
 		{
-			id:            'empty-map',
+			id:            uuid.v4(),
 			name:          'has-empty-map',
 			created:       Date.now(),
 			vaccinated:    {}
@@ -982,7 +999,7 @@ describe('cassandra adapter', function()
 			should.not.exist(err);
 			reply.should.be.ok;
 
-			Model.get('empty-map', function(err, obj)
+			Model.get(obj.key, function(err, obj)
 			{
 				should.not.exist(err);
 				obj.name.should.equal('has-empty-map');
@@ -1005,7 +1022,7 @@ describe('cassandra adapter', function()
 
 	it('merge() updates properties then saves the object', function(done)
 	{
-		Model.get('2', function(err, item)
+		Model.get(testBatch.key, function(err, item)
 		{
 			should.not.exist(err);
 
@@ -1160,7 +1177,7 @@ describe('cassandra adapter', function()
 
 	it('can fetch an attachment directly', function(done)
 	{
-		Model.adapter.attachment('1', 'avatar', function(err, body)
+		Model.adapter.attachment(instance.key, 'avatar', function(err, body)
 		{
 			should.not.exist(err);
 			(body instanceof Buffer).should.equal(true);
@@ -1202,11 +1219,11 @@ describe('cassandra adapter', function()
 	it('can remove documents in batches', function(done)
 	{
 		var obj2 = new Model();
-		obj2.key = '4';
+		obj2.key = uuid.v4();
 		obj2.name = 'two';
 		obj2.save(function(err, response)
 		{
-			Model.get('2', function(err, obj)
+			Model.get(testBatch.key, function(err, obj)
 			{
 				should.not.exist(err);
 				obj.should.be.an('object');
@@ -1245,7 +1262,7 @@ describe('cassandra adapter', function()
 	it('destroy responds with an error when passed an object that has already been destroyed', function(done)
 	{
 		var obj = new Model();
-		obj.key = 'foozle';
+		obj.key = uuid.v4();
 		obj.destroyed = true;
 		obj.destroy(function(err, destroyed)
 		{
@@ -1260,7 +1277,7 @@ describe('cassandra adapter', function()
 		var adapter = Model.adapter;
 
 		var obj = new Model();
-		obj.key = 'cats';
+		obj.key = uuid.v4();
 		obj.frogs = 'Cats do not eat frogs.';
 		obj.name = 'all about cats';
 
@@ -1273,7 +1290,7 @@ describe('cassandra adapter', function()
 			{
 				should.not.exist(err);
 
-				var key = 'cats:frogs';
+				var key = obj.key + ':frogs';
 				var query = 'SELECT * from polyclay_unit_tests.' + adapter.attachfamily + ' WHERE key = ?';
 
 				adapter.connection.cql(query, [key])
