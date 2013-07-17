@@ -175,7 +175,7 @@ var typeToValidator =
 	'set:date':      'set<timestamp>',
 	'set:uuid':      'set<uuid>',
 	'set:timeuuid':  'set<timeuuid>',
-	'list:string':   'list<string>',
+	'list:string':   'list<text>',
 	'list:number':   'list<double>',
 	'list:date':     'list<timestamp>',
 	'list:uuid':     'list<uuid>',
@@ -192,7 +192,7 @@ var typeToValidator =
 };
 CassandraAdapter.typeToValidator = typeToValidator;
 
-CassandraAdapter.prototype.createTableAs = 
+CassandraAdapter.prototype.createTableAs =
 
 CassandraAdapter.prototype.createModelTable = function()
 {

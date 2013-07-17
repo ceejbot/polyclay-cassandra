@@ -470,6 +470,7 @@ describe('cassandra adapter', function()
 			time_id_set:   'set:timeuuid',
 			id_map:        'map:uuid',
 			time_id_map:   'map:timeuuid',
+			emails_list:   'list:string',
 			created:       'date',
 			foozles:       'array',
 			snozzers:      'hash',
@@ -668,7 +669,7 @@ describe('cassandra adapter', function()
 			done();
 		});
 	});
-	
+
 	var testBatch;
 
 	it('can fetch in batches', function(done)
@@ -714,7 +715,7 @@ describe('cassandra adapter', function()
 			done();
 		});
 	});
-	
+
 	var setModel;
 
 	it('can save a document with a set field', function(done)
@@ -812,7 +813,7 @@ describe('cassandra adapter', function()
 			});
 		});
 	});
-	
+
 	var mapBooleanModel;
 
 	it('can save a document with a map:boolean field', function(done)
@@ -849,7 +850,7 @@ describe('cassandra adapter', function()
 			done();
 		});
 	});
-	
+
 	it('can save a document with a map:date field containing a date-like value', function(done)
 	{
 		var obj = new Model();
@@ -865,7 +866,7 @@ describe('cassandra adapter', function()
 		{
 			should.not.exist(err);
 			reply.should.be.ok;
-			
+
 			Model.get(obj.key, function(err, model)
 			{
 				should.not.exist(err);
@@ -875,7 +876,7 @@ describe('cassandra adapter', function()
 			});
 		});
 	});
-	
+
 	var mapDateModel;
 
 	it('can save a document with a map:date field', function(done)
@@ -910,7 +911,7 @@ describe('cassandra adapter', function()
 			done();
 		});
 	});
-	
+
 	var mapStringModel;
 
 	it('can save a document with a map:string field', function(done)
@@ -946,7 +947,7 @@ describe('cassandra adapter', function()
 			done();
 		});
 	});
-	
+
 	var mapNumberModel;
 
 	it('can save a document with a map:number field', function(done)
