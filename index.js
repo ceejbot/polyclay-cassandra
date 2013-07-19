@@ -7,6 +7,8 @@ var
 	util        = require('util')
 	;
 
+var Query = scamandrios.Query;
+
 //-------------------------------------------
 // Add new types to polyclay
 
@@ -189,6 +191,7 @@ var typeToValidator =
 	'array':         'text',
 	'hash':          'text',
 	'reference':     'text',
+	'untyped':       'text'
 };
 CassandraAdapter.typeToValidator = typeToValidator;
 
@@ -274,22 +277,30 @@ CassandraAdapter.prototype.save = function(obj, json, callback)
 	var self = this;
 
 	var properties = serialize(obj);
-	var params = [];
-	var q1 = 'INSERT INTO ' + this.family + '(';
+	var q1 = 'INSERT INTO {family} (';
 	var q2 = ') VALUES (';
+	
+	var types = {};
+	var params = { 'family': this.family };
 
+	var ctr = 0;
 	_.forOwn(properties, function(v, k)
 	{
-		q1 += (k + ', ');
-		q2 += '?, ';
-		params.push(v);
+		q1 += ('{c' + ctr + '}, ');
+		q2 += '{v' + ctr + '}, ';
+		
+		params['c' + ctr] = k;
+		params['v' + ctr] = v;
+		
+		types['v' + ctr] = typeToValidator[obj.propertyType(k)];
+		ctr++;
 	});
 	q1 = q1.slice(0, q1.length - 2);
 	q2 = q2.slice(0, q2.length - 2);
-	var query = q1 + q2 + ')';
+	var query = new Query(q1 + q2 + ')').types(types).params(params);
 
 	return this.withKeyspace
-	.then(function() { return self.connection.cql(query, params); })
+	.then(function() { return query.execute(self.connection); })
 	.then(function() { return self.createAttachmentsTable(); })
 	.then(function() { return self.saveAttachments(obj.key, json._attachments); })
 	.then(function(resp) { callback(null, 'OK');}, callback)
@@ -301,22 +312,31 @@ CassandraAdapter.prototype.update = CassandraAdapter.prototype.save;
 CassandraAdapter.prototype.merge = function(key, properties, callback)
 {
 	var self = this;
+	
+	var throwaway = new this.constructor();
 
-	var params = [];
+	var types = {};
+	var params = { 'keyfield': throwaway.keyfield, 'key': key };
+	
+	var ctr = 0;
 	var query = 'UPDATE ' + this.family + ' SET ';
 
 	_.forOwn(properties, function(v, k)
 	{
-		query += (k + ' = ?, ');
-		params.push(v);
+		query += '{c' + ctr + '} = {v' + ctr + '}, ';
+		
+		params['c' + ctr] = k;
+		params['v' + ctr] = v;
+		
+		types['v' + ctr] = typeToValidator[throwaway.propertyType(k)];
+		ctr++;
 	});
 
 	query = query.slice(0, query.length - 2);
-	query += ' WHERE ' + self.constructor.prototype.keyfield + ' = ?';
-	params.push(key);
+	query += ' WHERE {keyfield} = {key}';
 
 	return this.withKeyspace
-	.then(function() { return self.connection.cql(query, params); })
+	.then(function() { return new Query(query).params(params).types(types).execute(self.connection); })
 	.then(function()
 	{
 		callback(null, 'OK');
@@ -384,9 +404,20 @@ CassandraAdapter.prototype.get = function(key, callback)
 	if (Array.isArray(key))
 		return this.getBatch(key, callback);
 
-	var query = 'SELECT * from ' + this.options.keyspace + '.' + this.family + ' WHERE ' + self.constructor.prototype.keyfield + ' = ?';
+	var throwaway = new this.constructor();
+	
+	var query = new Query('SELECT * from {keyspace}.{family} WHERE {keyfield} = {key}').params(
+	{
+		'keyspace': this.options.keyspace,
+		'family': this.family,
+		'keyfield': throwaway.keyfield,
+		'key': key
+	}).types(
+	{
+		'key': throwaway.propertyType(throwaway.keyfield)
+	});
 
-	this.withKeyspace.then(function() { return self.connection.cql(query, [key]); })
+	this.withKeyspace.then(function() { return query.execute(self.connection); })
 	.then(function(rows)
 	{
 		rows.forEach(function(row)
@@ -409,11 +440,32 @@ CassandraAdapter.prototype.getBatch = function(keylist, callback)
 {
 	var results = [];
 	var self = this;
+	
+	var throwaway = new this.constructor();
+	var keyType = throwaway.propertyType(throwaway.keyfield);
 
-	var keystring = _.map(keylist, scamandrios.helpers.quote).join(', ');
-	var query = 'SELECT * from ' + this.options.keyspace + '.' + this.family + ' WHERE ' + self.constructor.prototype.keyfield + ' IN (' + keystring + ')';
+	var filters = [];
+	
+	var types = {};
+	var params = {};
+	
+	for (var i = 0, l = keylist.length; i < l; i++)
+	{
+		filters.push('{v' + i + '}');
+		types['v' + i] = keyType;
+		params['v' + i] = keylist[i];
+	}
+	
+	var keystring = filters.join(', ');
+	
+	var query = new Query('SELECT * from {keyspace}.{family} WHERE {keyfield} IN (' + keystring + ')').params(
+	{
+		'keyspace': this.options.keyspace,
+		'family': this.family,
+		'keyfield': self.constructor.prototype.keyfield
+	}).params(params).types(types);
 
-	this.withKeyspace.then(function() { return self.connection.cql(query); })
+	this.withKeyspace.then(function() { return query.execute(self.connection); })
 	.then(function(rows)
 	{
 		rows.forEach(function(row)
@@ -437,7 +489,7 @@ CassandraAdapter.prototype.all = function(callback)
 	var results = [];
 	var self = this;
 
-	this.withKeyspace.then(function() { return self.connection.cql('SELECT * from ' + self.family); })
+	this.withKeyspace.then(function() { return new Query('SELECT * from {family}').params({ 'family': self.family }).execute(self.connection); })
 	.then(function(rows)
 	{
 		rows.forEach(function(row)
@@ -505,9 +557,18 @@ CassandraAdapter.prototype.attachment = function(key, name, callback)
 CassandraAdapter.prototype.remove = function(obj, callback)
 {
 	var self = this;
-	var query = 'DELETE FROM ' + self.family + ' WHERE ' + self.constructor.prototype.keyfield + ' = ?';
 
-	this.withKeyspace.then(function() { return self.connection.cql(query, [obj.key]); })
+	var query = new Query('DELETE FROM {family} WHERE {keyfield} = {key}').params(
+	{
+		'family': self.family,
+		'keyfield': obj.keyfield,
+		'key': obj.key
+	}).types(
+	{
+		'key': obj.propertyType(obj.keyfield)
+	});
+
+	this.withKeyspace.then(function() { return query.execute(self.connection); })
 	.then(function(reply)
 	{
 		return self.removeAllAttachments(obj.key);
@@ -521,6 +582,10 @@ CassandraAdapter.prototype.remove = function(obj, callback)
 CassandraAdapter.prototype.destroyMany = function(objlist, callback)
 {
 	var self = this;
+	
+	var throwaway = new this.constructor();
+	var keyType = throwaway.propertyType(throwaway.keyfield);
+	
 	var keylist = _.map(objlist, function(item)
 	{
 		if (_.isObject(item))
@@ -529,15 +594,33 @@ CassandraAdapter.prototype.destroyMany = function(objlist, callback)
 			return item;
 	});
 
+	var filters = [];
+
+	var types = {};
+	var params = {};
+
+	for (var i = 0, l = keylist.length; i < l; i++)
+	{
+		filters.push('{v' + i + '}');
+		types['v' + i] = keyType;
+		params['v' + i] = keylist[i];
+	}
+
+	var keystring = filters.join(', ');
+
+	var query = new Query('DELETE from {keyspace}.{family} WHERE {keyfield} IN (' + keystring + ')').params(
+	{
+		'keyspace': this.options.keyspace,
+		'family': this.family,
+		'keyfield': self.constructor.prototype.keyfield
+	}).params(params).types(types);
+
 	var actions = _.map(keylist, function(k)
 	{
 		return self.removeAllAttachments(k);
 	});
 
-	var keystring = _.map(keylist, scamandrios.helpers.quote).join(', ');
-	var query = 'DELETE from ' + self.family + ' WHERE ' + self.constructor.prototype.keyfield + ' IN (' + keystring + ')';
-
-	P.all(actions).then(function() { return self.connection.cql(query); })
+	P.all(actions).then(function() { return query.execute(self.connection); })
 	.then(function(reply)
 	{
 		callback();
