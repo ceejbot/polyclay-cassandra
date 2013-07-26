@@ -279,7 +279,7 @@ CassandraAdapter.prototype.save = function(obj, json, callback)
 	var properties = serialize(obj);
 	var q1 = 'INSERT INTO {family} (';
 	var q2 = ') VALUES (';
-	
+
 	var types = {};
 	var params = { 'family': this.family };
 
@@ -288,10 +288,10 @@ CassandraAdapter.prototype.save = function(obj, json, callback)
 	{
 		q1 += ('{c' + ctr + '}, ');
 		q2 += '{v' + ctr + '}, ';
-		
+
 		params['c' + ctr] = k;
 		params['v' + ctr] = v;
-		
+
 		types['v' + ctr] = typeToValidator[obj.propertyType(k)];
 		ctr++;
 	});
@@ -312,22 +312,22 @@ CassandraAdapter.prototype.update = CassandraAdapter.prototype.save;
 CassandraAdapter.prototype.merge = function(key, properties, callback)
 {
 	var self = this;
-	
+
 	var throwaway = new this.constructor();
 
 	var types = {};
 	var params = { 'keyfield': throwaway.keyfield, 'key': key };
-	
+
 	var ctr = 0;
 	var query = 'UPDATE ' + this.family + ' SET ';
 
 	_.forOwn(properties, function(v, k)
 	{
 		query += '{c' + ctr + '} = {v' + ctr + '}, ';
-		
+
 		params['c' + ctr] = k;
 		params['v' + ctr] = v;
-		
+
 		types['v' + ctr] = typeToValidator[throwaway.propertyType(k)];
 		ctr++;
 	});
@@ -405,7 +405,7 @@ CassandraAdapter.prototype.get = function(key, callback)
 		return this.getBatch(key, callback);
 
 	var throwaway = new this.constructor();
-	
+
 	var query = new Query('SELECT * from {keyspace}.{family} WHERE {keyfield} = {key}').params(
 	{
 		'keyspace': this.options.keyspace,
@@ -414,7 +414,7 @@ CassandraAdapter.prototype.get = function(key, callback)
 		'key': key
 	}).types(
 	{
-		'key': throwaway.propertyType(throwaway.keyfield)
+		'key': typeToValidator[throwaway.propertyType(throwaway.keyfield)]
 	});
 
 	this.withKeyspace.then(function() { return query.execute(self.connection); })
@@ -440,24 +440,24 @@ CassandraAdapter.prototype.getBatch = function(keylist, callback)
 {
 	var results = [];
 	var self = this;
-	
+
 	var throwaway = new this.constructor();
-	var keyType = throwaway.propertyType(throwaway.keyfield);
+	var keyType = typeToValidator[throwaway.propertyType(throwaway.keyfield)];
 
 	var filters = [];
-	
+
 	var types = {};
 	var params = {};
-	
+
 	for (var i = 0, l = keylist.length; i < l; i++)
 	{
 		filters.push('{v' + i + '}');
 		types['v' + i] = keyType;
 		params['v' + i] = keylist[i];
 	}
-	
+
 	var keystring = filters.join(', ');
-	
+
 	var query = new Query('SELECT * from {keyspace}.{family} WHERE {keyfield} IN (' + keystring + ')').params(
 	{
 		'keyspace': this.options.keyspace,
@@ -565,7 +565,7 @@ CassandraAdapter.prototype.remove = function(obj, callback)
 		'key': obj.key
 	}).types(
 	{
-		'key': obj.propertyType(obj.keyfield)
+		'key': typeToValidator[obj.propertyType(obj.keyfield)]
 	});
 
 	this.withKeyspace.then(function() { return query.execute(self.connection); })
@@ -582,10 +582,10 @@ CassandraAdapter.prototype.remove = function(obj, callback)
 CassandraAdapter.prototype.destroyMany = function(objlist, callback)
 {
 	var self = this;
-	
+
 	var throwaway = new this.constructor();
-	var keyType = throwaway.propertyType(throwaway.keyfield);
-	
+	var keyType = typeToValidator[throwaway.propertyType(throwaway.keyfield)];
+
 	var keylist = _.map(objlist, function(item)
 	{
 		if (_.isObject(item))
