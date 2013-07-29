@@ -67,6 +67,7 @@ The keyspace is available at `obj.adapter.keyspace`, the model column family at 
 
 The adapter adds several cassandra-specific types to the core javascript type list. The polyclay model definition names are in the left column. Cassandra types are in the right. No attempt has been made to implement map types with anything other than string keys.
 
+```
 | Polyclay type   | Cassandra type
 | ==============: | :=============
 | string          | text
@@ -94,6 +95,7 @@ The adapter adds several cassandra-specific types to the core javascript type li
 | array           | text (json-stringified)
 | hash            | text (json-stringified)
 | reference       | text (json-stringified)
+```
 
 ## Object inflation
 
