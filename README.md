@@ -9,9 +9,11 @@ This module relies on [scamandrios](https://github.com/ceejbot/scamandrios) for 
 
 ## Installation
 
-`npm install polyclay-cassandra`
+`npm install polyclay-cassandra polyclay`
 
-## How-to
+Polyclay is a peer dependency of this module.
+
+## Quick start
 
 A quick example until more documentation is written:
 
@@ -36,9 +38,8 @@ var modelDefinition =
         is_valid:      'boolean',
         count:         'number',
         floating:      'number',
-        required_prop: 'string',
+        map:            'string',
     },
-    optional:   [ 'computed', 'ephemeral' ],
     required:   [ 'name', 'is_valid', 'required_prop'],
     singular:   'model',
     plural:     'models'
@@ -61,4 +62,43 @@ Model.setStorage(options, CassandraAdapter);
 ```
 
 The keyspace is available at `obj.adapter.keyspace`, the model column family at `obj.adapter.columnFamily`, and the attachments column family at `obj.adapter.attachments`. `adapter.provision()` creates keyspaces and column families if necessary. It is safe to call provision more than once; it will avoid trying to create the tables if they already exist.
+
+## Cassandra types
+
+The adapter adds several cassandra-specific types to the core javascript type list. The polyclay model definition names are in the left column. Cassandra types are in the right. No attempt has been made to implement map types with anything other than string keys.
+
+| Polyclay type   | Cassandra type
+| ==============: | :=============
+| string          | text
+| number          | double
+| boolean         | boolean
+| date            | timestamp
+| uuid            | uuid
+| timeuuid        | timeuuid
+| set:string      | set<text>
+| set:number      | set<double>
+| set:date        | set<timestamp>
+| set:uuid        | set<uuid>
+| set:timeuuid    | set<timeuuid>
+| list:string     | list<text>
+| list:number     | list<double>
+| list:date       | list<timestamp>
+| list:uuid       | list<uuid>
+| list:timeuuid   | list<timeuuid>
+| map:string      | map<text, text>
+| map:boolean     | map<text, boolean>
+| map:number      | map<text, double>
+| map:date        | map<text, timestamp>
+| map:uuid        | map<text, uuid>
+| map:timeuuid    | map<text, timeuuid>
+| array           | text (json-stringified)
+| hash            | text (json-stringified)
+| reference       | text (json-stringified)
+
+## Object inflation
+
+TBD
+
+
+
 
