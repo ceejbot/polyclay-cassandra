@@ -204,7 +204,7 @@ CassandraAdapter.prototype.createModelTable = function()
 	var throwaway = new self.constructor();
 	var properties = throwaway.propertyTypes();
 
-	var query = 'CREATE TABLE ' + self.family + '(';
+	var query = 'CREATE TABLE ' + self.options.keyspace + '.' + self.family + '(';
 
 	var cols = [];
 
@@ -277,11 +277,11 @@ CassandraAdapter.prototype.save = function(obj, json, callback)
 	var self = this;
 
 	var properties = serialize(obj);
-	var q1 = 'INSERT INTO {family} (';
+	var q1 = 'INSERT INTO {keyspace}.{family} (';
 	var q2 = ') VALUES (';
 
 	var types = {};
-	var params = { 'family': this.family };
+	var params = { 'family': this.family, 'keyspace': this.options.keyspace };
 
 	var ctr = 0;
 	_.forOwn(properties, function(v, k)
@@ -489,7 +489,9 @@ CassandraAdapter.prototype.all = function(callback)
 	var results = [];
 	var self = this;
 
-	this.withKeyspace.then(function() { return new Query('SELECT * from {family}').params({ 'family': self.family }).execute(self.connection); })
+	this.withKeyspace.then(function() { return new Query('SELECT * from {keyspace}.{family}')
+	.params({ 'family': self.family, 'keyspace': self.options.keyspace })
+	.execute(self.connection); })
 	.then(function(rows)
 	{
 		rows.forEach(function(row)
@@ -558,8 +560,9 @@ CassandraAdapter.prototype.remove = function(obj, callback)
 {
 	var self = this;
 
-	var query = new Query('DELETE FROM {family} WHERE {keyfield} = {key}').params(
+	var query = new Query('DELETE FROM {keyspace}.{family} WHERE {keyfield} = {key}').params(
 	{
+		'keyspace': self.options.keyspace,
 		'family': self.family,
 		'keyfield': obj.keyfield,
 		'key': obj.key
