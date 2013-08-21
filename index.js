@@ -251,6 +251,9 @@ CassandraAdapter.prototype.createAttachmentsTable = function()
 
 CassandraAdapter.prototype.provision = function(callback)
 {
+	if (this.options.noprovision)
+		return callback(null, 'OK');
+
 	var self = this;
 
 	return this.withKeyspace
