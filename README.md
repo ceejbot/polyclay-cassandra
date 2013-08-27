@@ -3,6 +3,9 @@ polyclay-cassandra
 
 A cassandra persistence adapter for [Polyclay](https://github.com/ceejbot/polyclay).
 
+[![NPM](https://nodei.co/npm/polyclay-cassandra.png)](https://nodei.co/npm/polyclay-cassandra/)
+
+
 [![Build Status](https://secure.travis-ci.org/ceejbot/polyclay-cassandra.png)](http://travis-ci.org/ceejbot/polyclay-cassandra)
 
 This module relies on [scamandrios](https://github.com/ceejbot/scamandrios) for its cassandra driver.
@@ -61,7 +64,9 @@ var options =
 Model.setStorage(options, CassandraAdapter);
 ```
 
-The keyspace is available at `obj.adapter.keyspace`, the model column family at `obj.adapter.columnFamily`, and the attachments column family at `obj.adapter.attachments`. `adapter.provision()` creates keyspaces and column families if necessary. It is safe to call provision more than once; it will avoid trying to create the tables if they already exist.
+The keyspace is available at `obj.adapter.keyspace` and the model column family at `obj.adapter.columnFamily`. `adapter.provision()` creates keyspaces and column families if necessary. It is safe to call provision more than once; it will avoid trying to create the tables if they already exist.
+
+*Attachments are no longer supported by the cassandra adapter.*
 
 ## Cassandra types
 
