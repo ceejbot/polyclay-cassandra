@@ -100,10 +100,7 @@ function CassandraAdapter()
 	this.attachfamily = null;
 	this.tables       = {};
 	this.connection   = null;
-	this.withKeyspace = null;
-	this.keyspace     = null;
 	this.columnFamily = null;
-	this.attachments  = null;
 }
 
 CassandraAdapter.prototype.configure = function(options, modelfunc)
@@ -113,7 +110,6 @@ CassandraAdapter.prototype.configure = function(options, modelfunc)
 	_.assign(this.options, options);
 	this.constructor = modelfunc;
 	this.family = modelfunc.prototype.plural;
-	this.attachfamily = this.family + '_attachments';
 
 	// If you hand us a pool, we presume you have added an error listener.
 	if (options.connection)
@@ -133,35 +129,11 @@ CassandraAdapter.prototype.configure = function(options, modelfunc)
 			throw(err);
 		});
 	}
-
-	this.withKeyspace = this.connection.connect().then(function()
-	{
-		return self.connection.assignKeyspace(self.options.keyspace);
-	}).then(function(ks)
-	{
-		if (Array.isArray(ks))
-		{
-			var promise = _.find(ks, { 'state': 'fulfilled' });
-
-			if (!promise)
-			{
-				var invalidError = new Error('Missing or invalid response.');
-				_.assign(invalidError, { 'keyspace': self.options.keyspace, 'response': ks });
-				throw invalidError;
-			}
-
-			self.keyspace = promise.value;
-		}
-		else
-			self.keyspace = ks;
-
-		return self.keyspace;
-	});
 };
 
 CassandraAdapter.prototype.getAttachmentTable = function()
 {
-	return this.keyspace.getTableAs(this.attachfamily, 'attachments');
+	return P();
 };
 
 var typeToValidator =
@@ -219,6 +191,7 @@ CassandraAdapter.prototype.createModelTable = function()
 	query += ', PRIMARY KEY (' + throwaway.keyfield + '))';
 
 	return self.connection.cql(query)
+	.then(function() { return 'OK'; })
 	.fail(function(error)
 	{
 		if (/^Cannot add already existing/i.test(error.why))
@@ -228,48 +201,66 @@ CassandraAdapter.prototype.createModelTable = function()
 	});
 };
 
-CassandraAdapter.prototype.createAttachmentsTable = function()
+CassandraAdapter.prototype.createKeyspace = function()
 {
 	var self = this;
 
-	return this.keyspace.createTableAs(this.attachfamily, 'attachments',
+	var query = new Query("CREATE KEYSPACE {keyspace} WITH REPLICATION = {replication};")
+	.params(
 	{
-		description: 'polyclay ' + this.constructor.prototype.singular + ' attachments',
-		columns:
-		[
-			{ name: 'name',         validation_class: 'UTF8Type'  },
-			{ name: 'content_type', validation_class: 'UTF8Type'  },
-			{ name: 'data',         validation_class: 'AsciiType' }
-		]
-	})
-	.then(function(table)
+		'keyspace': self.options.keyspace,
+		replication: {'class' : 'SimpleStrategy', 'replication_factor': 3 }
+	}).types({ replication: 'map<text, text>'});
+
+	return query.execute(self.connection)
+	.then(function()
 	{
-		self.attachments = table;
-		return table;
+		return 'OK';
+	}).fail(function(error)
+	{
+		if (/^Cannot add existing/i.test(error.why))
+			return 'OK';
+
+		throw error;
 	});
 };
 
 CassandraAdapter.prototype.provision = function(callback)
 {
-	if (this.options.noprovision)
-		return callback(null, 'OK');
+	var self = this, isPool = false;
 
-	var self = this;
-
-	return this.withKeyspace
-	.then(function()
+	self.connection.connect()
+	.then(function(reply)
 	{
-		return P.all(
-		[
-			self.createModelTable(),
-			self.createAttachmentsTable()
-		]);
+		if (self.options.noprovision)
+			return callback(null, 'OK');
+
+		isPool = Array.isArray(reply);
+		return self.createKeyspace();
 	})
 	.then(function()
 	{
-		callback(null, 'OK');
-	}, callback)
-	.done();
+		var query = new Query('use {keyspace};').params({'keyspace': self.options.keyspace});
+		if (!isPool)
+			return query.execute(self.connection);
+
+		var actions = _.map(self.connection.clients, function(conn)
+		{
+			return query.execute(conn);
+		});
+
+		return P.allSettled(actions);
+	})
+	.then(function() { return self.createModelTable(); })
+	.then(function(response)
+	{
+		callback(null, response);
+	})
+	.fail(function(error)
+	{
+		console.log(error);
+		callback(error);
+	}).done();
 };
 
 CassandraAdapter.prototype.shutdown = function() {};
@@ -302,10 +293,7 @@ CassandraAdapter.prototype.save = function(obj, json, callback)
 	q2 = q2.slice(0, q2.length - 2);
 	var query = new Query(q1 + q2 + ')').types(types).params(params);
 
-	return this.withKeyspace
-	.then(function() { return query.execute(self.connection); })
-	.then(function() { return self.createAttachmentsTable(); })
-	.then(function() { return self.saveAttachments(obj.key, json._attachments); })
+	return query.execute(self.connection)
 	.then(function(resp) { callback(null, 'OK');}, callback)
 	.done();
 };
@@ -338,8 +326,7 @@ CassandraAdapter.prototype.merge = function(key, properties, callback)
 	query = query.slice(0, query.length - 2);
 	query += ' WHERE {keyfield} = {key}';
 
-	return this.withKeyspace
-	.then(function() { return new Query(query).params(params).types(types).execute(self.connection); })
+	return new Query(query).params(params).types(types).execute(self.connection)
 	.then(function()
 	{
 		callback(null, 'OK');
@@ -349,54 +336,7 @@ CassandraAdapter.prototype.merge = function(key, properties, callback)
 
 CassandraAdapter.prototype.saveAttachment = function(obj, attachment, callback)
 {
-	var self = this;
-	var key = makeAttachKey(obj.key, attachment.name);
-
-	var values =
-	{
-		name:         attachment.name,
-		content_type: attachment.content_type,
-		data:         new Buffer(attachment.body).toString('base64')
-	};
-
-	return this.getAttachmentTable()
-	.then(function() { return self.attachments.insert(key, values); })
-	.then(function(res)
-	{
-		callback(null, 'OK');
-	}, callback)
-	.done();
-};
-
-CassandraAdapter.prototype.saveAttachments = function(key, attachments)
-{
-	if (!attachments || !_.isObject(attachments))
-		return P('OK');
-	var names = Object.keys(attachments);
-	if (!names.length)
-		return P('OK');
-
-	var self = this;
-
-	return this.getAttachmentTable()
-	.then(function()
-	{
-		var actions = _.map(names, function(name)
-		{
-			var attach = attachments[name];
-			var k = makeAttachKey(key, name);
-			var values =
-			{
-				name:         name,
-				content_type: attach.content_type,
-				data:         attach.data // use the B64-encoded version
-			};
-
-			return self.attachments.insert(k, values);
-		});
-
-		return P.all(actions);
-	});
+	callback(null, 'OK');
 };
 
 CassandraAdapter.prototype.get = function(key, callback)
@@ -420,7 +360,7 @@ CassandraAdapter.prototype.get = function(key, callback)
 		'key': typeToValidator[throwaway.propertyType(throwaway.keyfield)]
 	});
 
-	this.withKeyspace.then(function() { return query.execute(self.connection); })
+	query.execute(self.connection)
 	.then(function(rows)
 	{
 		rows.forEach(function(row)
@@ -468,7 +408,7 @@ CassandraAdapter.prototype.getBatch = function(keylist, callback)
 		'keyfield': self.constructor.prototype.keyfield
 	}).params(params).types(types);
 
-	this.withKeyspace.then(function() { return query.execute(self.connection); })
+	return query.execute(self.connection)
 	.then(function(rows)
 	{
 		rows.forEach(function(row)
@@ -492,9 +432,10 @@ CassandraAdapter.prototype.all = function(callback)
 	var results = [];
 	var self = this;
 
-	this.withKeyspace.then(function() { return new Query('SELECT * from {keyspace}.{family}')
-	.params({ 'family': self.family, 'keyspace': self.options.keyspace })
-	.execute(self.connection); })
+	var q = new Query('SELECT * from {keyspace}.{family}');
+
+	q.params({ 'family': self.family, 'keyspace': self.options.keyspace })
+	.execute(self.connection)
 	.then(function(rows)
 	{
 		rows.forEach(function(row)
@@ -519,44 +460,7 @@ function makeAttachKey(k, n)
 
 CassandraAdapter.prototype.attachment = function(key, name, callback)
 {
-	var results = [];
-	var self = this;
-
-	var cassKey = makeAttachKey(key, name);
-	var query = 'SELECT * from ' + self.attachfamily + ' WHERE key = ?';
-
-	this.withKeyspace.then(function() { return self.connection.cql(query, [cassKey]); })
-	.then(function(rows)
-	{
-		if (rows.length === 0)
-			return callback(null, null);
-
-		var found = null;
-
-		rows.forEach(function(row)
-		{
-			var props = {};
-			row.forEach(function(n, v, ts, ttl)
-			{
-				props[n] = v;
-			});
-
-			if (props.data)
-			{
-				var b = new Buffer(props.data, 'base64');
-				if (props.content_type.match(/text/))
-					props.body = b.toString();
-				else
-					props.body = b;
-			}
-
-			if (props.name === name)
-				found = props;
-		});
-
-		return callback(null, found ? found.body : null);
-	}, callback)
-	.done();
+	callback();
 };
 
 CassandraAdapter.prototype.remove = function(obj, callback)
@@ -574,11 +478,8 @@ CassandraAdapter.prototype.remove = function(obj, callback)
 		'key': typeToValidator[obj.propertyType(obj.keyfield)]
 	});
 
-	this.withKeyspace.then(function() { return query.execute(self.connection); })
-	.then(function(reply)
-	{
-		return self.removeAllAttachments(obj.key);
-	}).then(function(res)
+	query.execute(self.connection)
+	.then(function(res)
 	{
 		callback(null, 'OK');
 	}, callback)
@@ -621,12 +522,7 @@ CassandraAdapter.prototype.destroyMany = function(objlist, callback)
 		'keyfield': self.constructor.prototype.keyfield
 	}).params(params).types(types);
 
-	var actions = _.map(keylist, function(k)
-	{
-		return self.removeAllAttachments(k);
-	});
-
-	P.all(actions).then(function() { return query.execute(self.connection); })
+	query.execute(self.connection)
 	.then(function(reply)
 	{
 		callback();
@@ -636,31 +532,7 @@ CassandraAdapter.prototype.destroyMany = function(objlist, callback)
 
 CassandraAdapter.prototype.removeAttachment = function(obj, name, callback)
 {
-	var self = this;
-	var key = makeAttachKey(obj.key, name);
-	this.getAttachmentTable()
-	.then(function() { return self.attachments.remove(key); })
-	.then(function(res) { callback(null, 'OK'); }, callback)
-	.done();
-};
-
-CassandraAdapter.prototype.removeAllAttachments = function(key)
-{
-	var self = this;
-
-	// I feel that this is grotty.
-	var props = _.filter(Object.keys(self.constructor.prototype), function(item)
-	{
-		return item.match(/^fetch_/);
-	});
-
-	var actions = _.map(props, function(p)
-	{
-		var akey = key + ':' + p.replace(/^fetch_/, '');
-		return self.getAttachmentTable().then(function() { return self.attachments.remove(akey); });
-	});
-
-	return P.all(actions);
+	callback(null, 'OK');
 };
 
 var stringifyPat = /^(array|hash|reference|untyped)$/;
