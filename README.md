@@ -61,7 +61,9 @@ var options =
 Model.setStorage(options, CassandraAdapter);
 ```
 
-The keyspace is available at `obj.adapter.keyspace`, the model column family at `obj.adapter.columnFamily`, and the attachments column family at `obj.adapter.attachments`. `adapter.provision()` creates keyspaces and column families if necessary. It is safe to call provision more than once; it will avoid trying to create the tables if they already exist.
+The keyspace is available at `obj.adapter.keyspace` and the model column family at `obj.adapter.columnFamily`. `adapter.provision()` creates keyspaces and column families if necessary. It is safe to call provision more than once; it will avoid trying to create the tables if they already exist.
+
+*Attachments are no longer supported by the cassandra adapter.*
 
 ## Cassandra types
 
