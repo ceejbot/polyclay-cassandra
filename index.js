@@ -227,20 +227,29 @@ CassandraAdapter.prototype.createKeyspace = function()
 
 CassandraAdapter.prototype.provision = function(callback)
 {
-	var self = this;
+	var self = this, isPool = false;
 
 	self.connection.connect()
-	.then(function()
+	.then(function(reply)
 	{
 		if (self.options.noprovision)
 			return callback(null, 'OK');
 
+		isPool = Array.isArray(reply);
 		return self.createKeyspace();
 	})
 	.then(function()
 	{
 		var query = new Query('use {keyspace};').params({'keyspace': self.options.keyspace});
-		return query.execute(self.connection);
+		if (!isPool)
+			return query.execute(self.connection);
+
+		var actions = _.map(self.connection.clients, function(conn)
+		{
+			return query.execute(conn);
+		});
+
+		return P.allSettled(actions);
 	})
 	.then(function() { return self.createModelTable(); })
 	.then(function(response)
@@ -328,37 +337,6 @@ CassandraAdapter.prototype.merge = function(key, properties, callback)
 CassandraAdapter.prototype.saveAttachment = function(obj, attachment, callback)
 {
 	callback(null, 'OK');
-};
-
-CassandraAdapter.prototype.saveAttachments = function(key, attachments)
-{
-	if (!attachments || !_.isObject(attachments))
-		return P('OK');
-	var names = Object.keys(attachments);
-	if (!names.length)
-		return P('OK');
-
-	var self = this;
-
-	return this.getAttachmentTable()
-	.then(function()
-	{
-		var actions = _.map(names, function(name)
-		{
-			var attach = attachments[name];
-			var k = makeAttachKey(key, name);
-			var values =
-			{
-				name:         name,
-				content_type: attach.content_type,
-				data:         attach.data // use the B64-encoded version
-			};
-
-			return self.attachments.insert(k, values);
-		});
-
-		return P.all(actions);
-	});
 };
 
 CassandraAdapter.prototype.get = function(key, callback)
@@ -482,44 +460,7 @@ function makeAttachKey(k, n)
 
 CassandraAdapter.prototype.attachment = function(key, name, callback)
 {
-	var results = [];
-	var self = this;
-
-	var cassKey = makeAttachKey(key, name);
-	var query = 'SELECT * from ' + self.attachfamily + ' WHERE key = ?';
-
-	self.connection.cql(query, [cassKey])
-	.then(function(rows)
-	{
-		if (rows.length === 0)
-			return callback(null, null);
-
-		var found = null;
-
-		rows.forEach(function(row)
-		{
-			var props = {};
-			row.forEach(function(n, v, ts, ttl)
-			{
-				props[n] = v;
-			});
-
-			if (props.data)
-			{
-				var b = new Buffer(props.data, 'base64');
-				if (props.content_type.match(/text/))
-					props.body = b.toString();
-				else
-					props.body = b;
-			}
-
-			if (props.name === name)
-				found = props;
-		});
-
-		return callback(null, found ? found.body : null);
-	}, callback)
-	.done();
+	callback();
 };
 
 CassandraAdapter.prototype.remove = function(obj, callback)
@@ -538,10 +479,7 @@ CassandraAdapter.prototype.remove = function(obj, callback)
 	});
 
 	query.execute(self.connection)
-	.then(function(reply)
-	{
-		return self.removeAllAttachments(obj.key);
-	}).then(function(res)
+	.then(function(res)
 	{
 		callback(null, 'OK');
 	}, callback)
@@ -584,12 +522,7 @@ CassandraAdapter.prototype.destroyMany = function(objlist, callback)
 		'keyfield': self.constructor.prototype.keyfield
 	}).params(params).types(types);
 
-	var actions = _.map(keylist, function(k)
-	{
-		return self.removeAllAttachments(k);
-	});
-
-	P.all(actions).then(function() { return query.execute(self.connection); })
+	query.execute(self.connection)
 	.then(function(reply)
 	{
 		callback();
@@ -599,31 +532,7 @@ CassandraAdapter.prototype.destroyMany = function(objlist, callback)
 
 CassandraAdapter.prototype.removeAttachment = function(obj, name, callback)
 {
-	var self = this;
-	var key = makeAttachKey(obj.key, name);
-	this.getAttachmentTable()
-	.then(function() { return self.attachments.remove(key); })
-	.then(function(res) { callback(null, 'OK'); }, callback)
-	.done();
-};
-
-CassandraAdapter.prototype.removeAllAttachments = function(key)
-{
-	var self = this;
-
-	// I feel that this is grotty.
-	var props = _.filter(Object.keys(self.constructor.prototype), function(item)
-	{
-		return item.match(/^fetch_/);
-	});
-
-	var actions = _.map(props, function(p)
-	{
-		var akey = key + ':' + p.replace(/^fetch_/, '');
-		return self.getAttachmentTable().then(function() { return self.attachments.remove(akey); });
-	});
-
-	return P.all(actions);
+	callback(null, 'OK');
 };
 
 var stringifyPat = /^(array|hash|reference|untyped)$/;

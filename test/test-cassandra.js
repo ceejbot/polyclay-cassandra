@@ -136,6 +136,49 @@ describe('cassandra adapter', function()
 		});
 	});
 
+/*
+	it('provision calls use keyspace on all connections in a pool', function(done)
+	{
+		var pool = new scamandrios.ConnectionPool({
+			hosts:    ['localhost:9160', 'localhost:9160','localhost:9160',],
+		});
+
+		var PoolModel = polyclay.Model.buildClass(
+		{
+			properties:
+			{
+				id:   'uuid',
+				name: 'string',
+			},
+			singular:   'pony',
+			plural:     'ponies',
+		});
+		polyclay.persist(PoolModel, 'id');
+		var options =
+		{
+			connection: pool,
+			keyspace: 'polyclay_unit_tests',
+		};
+		PoolModel.setStorage(options, CassandraAdapter);
+
+		PoolModel.provision(function(r)
+		{
+			var c = pool.clients[0];
+			return c.executeCQL(new Buffer('select * from ponies;'))
+			.then(function(reply)
+			{
+				console.log(reply);
+				done();
+			})
+			.fail(function(err)
+			{
+				console.log(err);
+				should.not.exist(err);
+			}).done();;
+		});
+	});
+*/
+
 	it('throws when asked to save a document without a key', function()
 	{
 		var noID = function()
