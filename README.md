@@ -3,6 +3,9 @@ polyclay-cassandra
 
 A cassandra persistence adapter for [Polyclay](https://github.com/ceejbot/polyclay).
 
+[![NPM](https://nodei.co/npm/polyclay-cassandra.png)](https://nodei.co/npm/polyclay-cassandra/)
+
+
 [![Build Status](https://secure.travis-ci.org/ceejbot/polyclay-cassandra.png)](http://travis-ci.org/ceejbot/polyclay-cassandra)
 
 This module relies on [scamandrios](https://github.com/ceejbot/scamandrios) for its cassandra driver.
