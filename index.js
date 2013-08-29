@@ -94,13 +94,14 @@ function Defaults()
 
 function CassandraAdapter()
 {
-	this.options      = new Defaults();
-	this.constructor  = null;
-	this.family       = null;
-	this.attachfamily = null;
-	this.tables       = {};
-	this.connection   = null;
-	this.columnFamily = null;
+	this.options        = new Defaults();
+	this.constructor    = null;
+	this.family         = null;
+	this.attachfamily   = null;
+	this.tables         = {};
+	this.connection     = null;
+	this.withConnection = null;
+	this.columnFamily   = null;
 }
 
 CassandraAdapter.prototype.configure = function(options, modelfunc)
@@ -129,6 +130,8 @@ CassandraAdapter.prototype.configure = function(options, modelfunc)
 			throw(err);
 		});
 	}
+
+	this.withConnection = this.connection.connect();
 };
 
 CassandraAdapter.prototype.getAttachmentTable = function()
@@ -229,19 +232,23 @@ CassandraAdapter.prototype.provision = function(callback)
 {
 	var self = this, isPool = false;
 
-	self.connection.connect()
+	self.withConnection
 	.then(function(reply)
 	{
-		if (self.options.noprovision)
-			return callback(null, 'OK');
-
-		isPool = Array.isArray(reply);
+		var query = new Query('SELECT keyspace_name FROM system.schema_keyspaces WHERE keyspace_name = {name};');
+		query.types({ 'name': 'text' }).params({ 'name': self.options.keyspace });
+		return query.execute(self.connection);
+	})
+	.then(function(results)
+	{
+		if (results.length) return true;
 		return self.createKeyspace();
 	})
 	.then(function()
 	{
 		var query = new Query('use {keyspace};').params({'keyspace': self.options.keyspace});
-		if (!isPool)
+
+		if (!Array.isArray(self.connection.clients))
 			return query.execute(self.connection);
 
 		var actions = _.map(self.connection.clients, function(conn)
@@ -293,7 +300,8 @@ CassandraAdapter.prototype.save = function(obj, json, callback)
 	q2 = q2.slice(0, q2.length - 2);
 	var query = new Query(q1 + q2 + ')').types(types).params(params);
 
-	return query.execute(self.connection)
+	return this.withConnection
+	.then(function() { return query.execute(self.connection); })
 	.then(function(resp) { callback(null, 'OK');}, callback)
 	.done();
 };
@@ -326,7 +334,8 @@ CassandraAdapter.prototype.merge = function(key, properties, callback)
 	query = query.slice(0, query.length - 2);
 	query += ' WHERE {keyfield} = {key}';
 
-	return new Query(query).params(params).types(types).execute(self.connection)
+	this.withConnection
+	.then(function() { return new Query(query).params(params).types(types).execute(self.connection); })
 	.then(function()
 	{
 		callback(null, 'OK');
@@ -408,7 +417,8 @@ CassandraAdapter.prototype.getBatch = function(keylist, callback)
 		'keyfield': self.constructor.prototype.keyfield
 	}).params(params).types(types);
 
-	return query.execute(self.connection)
+	this.withConnection
+	.then(function() { return query.execute(self.connection); })
 	.then(function(rows)
 	{
 		rows.forEach(function(row)
@@ -434,8 +444,10 @@ CassandraAdapter.prototype.all = function(callback)
 
 	var q = new Query('SELECT * from {keyspace}.{family}');
 
-	q.params({ 'family': self.family, 'keyspace': self.options.keyspace })
-	.execute(self.connection)
+	q.params({ 'family': self.family, 'keyspace': self.options.keyspace });
+
+	this.withConnection
+	.then(function() { return q.execute(self.connection); })
 	.then(function(rows)
 	{
 		rows.forEach(function(row)
@@ -478,7 +490,8 @@ CassandraAdapter.prototype.remove = function(obj, callback)
 		'key': typeToValidator[obj.propertyType(obj.keyfield)]
 	});
 
-	query.execute(self.connection)
+	this.withConnection
+	.then(function() { return query.execute(self.connection); })
 	.then(function(res)
 	{
 		callback(null, 'OK');
@@ -522,7 +535,8 @@ CassandraAdapter.prototype.destroyMany = function(objlist, callback)
 		'keyfield': self.constructor.prototype.keyfield
 	}).params(params).types(types);
 
-	query.execute(self.connection)
+	this.withConnection
+	.then(function() { return query.execute(self.connection); })
 	.then(function(reply)
 	{
 		callback();

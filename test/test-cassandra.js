@@ -136,7 +136,6 @@ describe('cassandra adapter', function()
 		});
 	});
 
-/*
 	it('provision calls use keyspace on all connections in a pool', function(done)
 	{
 		var pool = new scamandrios.ConnectionPool({
@@ -167,7 +166,6 @@ describe('cassandra adapter', function()
 			return c.executeCQL(new Buffer('select * from ponies;'))
 			.then(function(reply)
 			{
-				console.log(reply);
 				done();
 			})
 			.fail(function(err)
@@ -177,7 +175,6 @@ describe('cassandra adapter', function()
 			}).done();;
 		});
 	});
-*/
 
 	it('throws when asked to save a document without a key', function()
 	{
