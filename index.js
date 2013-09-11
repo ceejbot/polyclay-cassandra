@@ -97,7 +97,6 @@ function CassandraAdapter()
 	this.options        = new Defaults();
 	this.constructor    = null;
 	this.family         = null;
-	this.attachfamily   = null;
 	this.tables         = {};
 	this.connection     = null;
 	this.withConnection = null;
@@ -464,11 +463,6 @@ CassandraAdapter.prototype.all = function(callback)
 	}, callback)
 	.done();
 };
-
-function makeAttachKey(k, n)
-{
-	return k + ':' + n;
-}
 
 CassandraAdapter.prototype.attachment = function(key, name, callback)
 {
