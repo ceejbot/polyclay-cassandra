@@ -598,7 +598,7 @@ function serialize(obj)
 
 function deserializeCollection(collection, type)
 {
-	if (collection == null)
+	if (collection == null || type == null)
 		return [];
 
 	return _.map(collection, function(value)
@@ -609,7 +609,7 @@ function deserializeCollection(collection, type)
 
 function deserializeMap(map, type)
 {
-	if (map == null)
+	if (map == null || type == null)
 		return {};
 
 	var result = {};
@@ -670,7 +670,8 @@ CassandraAdapter.prototype.inflate = function(hash)
 	_.forOwn(hash, function(v, k)
 	{
 		var type = obj.propertyType(k);
-		converted[k] = deserialize(v, type);
+		if (type != null)
+			converted[k] = deserialize(v, type);
 	});
 
 	obj.initFromStorage(converted);
