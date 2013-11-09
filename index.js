@@ -568,29 +568,10 @@ function serialize(obj)
 
 		if (stringifyPat.test(type))
 			struct[k] = JSON.stringify(struct[k]);
-		else if (type.lastIndexOf('set:', 0) === 0)
-		{
-			if (struct[k].length === 0)
-				delete struct[k];
-			else
-			{
-				if (type === 'set:date')
-					_.each(struct[k], serializeDateCollection);
-
-				struct[k]._iset = true;
-			}
-		}
-		else if (type === 'list:date')
+		else if (type === 'set:date' || type === 'list:date')
 			_.each(struct[k], serializeDateCollection);
-		else if (type === 'date')
-			struct[k] = serializeDate(struct[k]);
-		else if (type.lastIndexOf('map:', 0) === 0)
-		{
-			if (_.isEmpty(struct[k]))
-				delete struct[k];
-			else if (type === 'map:date')
-				_.forOwn(struct[k], serializeDateCollection);
-		}
+		else if (type === 'map:date')
+			_.forOwn(struct[k], serializeDateCollection);
 	}
 
 	return struct;
