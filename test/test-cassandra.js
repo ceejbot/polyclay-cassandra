@@ -172,7 +172,7 @@ describe('cassandra adapter', function()
 			{
 				console.log(err);
 				should.not.exist(err);
-			}).done();;
+			}).done();
 		});
 	});
 
@@ -386,6 +386,51 @@ describe('cassandra adapter', function()
 				obj.pet_types.should.deep.equal([]);
 				obj.primes.should.deep.equal([]);
 				done();
+			});
+		});
+	});
+
+	it('serializes empty sets', function(done)
+	{
+		var setModel = new Model();
+		setModel.update(
+		{
+			id:            uuid.v4(),
+			name:          'has-single-set',
+			created:       Date.now(),
+			pet_types:     ['cat'],
+			primes:        [3]
+		});
+
+		setModel.save(function(err, reply)
+		{
+			should.not.exist(err);
+			reply.should.be.ok;
+
+			Model.get(setModel.key, function(err, obj)
+			{
+				should.not.exist(err);
+				obj.name.should.equal('has-single-set');
+				obj.pet_types.should.deep.equal(['cat']);
+				obj.primes.should.deep.equal([3]);
+
+				obj.pet_types.length = obj.primes.length = 0;
+				obj.markDirty();
+
+				obj.save(function(err, reply)
+				{
+					should.not.exist(err);
+					reply.should.be.ok;
+
+					Model.get(obj.key, function(err, obj)
+					{
+						should.not.exist(err);
+						obj.name.should.equal('has-single-set');
+						obj.pet_types.should.deep.equal([]);
+						obj.primes.should.deep.equal([]);
+						done();
+					});
+				});
 			});
 		});
 	});
